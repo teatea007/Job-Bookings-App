@@ -4,233 +4,329 @@
 <meta name="apple-mobile-web-app-title" content="My Booking 360">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@75..100,500..800&family=IBM+Plex+Mono:wght@500&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700;800&family=Space+Mono:wght@400;700&display=swap">
 <style>
-/* Layout: one narrow call-sheet column, sticky header, thumb-reach tab bar; status colour is the main signal. */
+/* v2 layout (UX Pilot): no app bar; each screen opens with a big title. Cream paper, white cards, teal actions, status colour on card edges. */
 :root{
-  /* Light tropical palette: warm ivory paper, lagoon teal accent, orchid / mango / jade / hibiscus status colours. */
-  --bg:#FFF8F1; --surface:#FFFFFF; --surface-2:#FDEFE4; --line:#F1DED0;
+  --bg:#FFF6EE; --surface:#FFFFFF; --surface-2:#FDF0E5; --tint:#FFF9F4; --line:#F2DFD1; --line-2:#F7E9DD;
   --ink:#2B1D30; --ink-2:#5E4C64; --ink-3:#8F7E96;
-  --accent:#08807C; --accent-ink:#FFFFFF; --accent-soft:#D9F4F1;
+  --accent:#0B7F7A; --accent-ink:#FFFFFF; --accent-soft:#E3F3F1;
   --st-blocked:#8A4BC2; --st-heavy:#C46A00; --st-confirmed:#178A50; --st-completed:#2667C9; --st-notdone:#D63A55; --st-cancelled:#9A8F9E;
   --good:#178A50; --warn:#C46A00; --bad:#D63A55;
-  --tropic:linear-gradient(120deg,#FF6F61 0%,#FFB347 45%,#2EC4B6 100%);
-  --f-display:"Archivo","Arial Narrow",system-ui,sans-serif;
-  --f-body:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
-  --f-mono:"IBM Plex Mono",ui-monospace,"SF Mono",Menlo,monospace;
-  --r:14px; --nav-h:64px; color-scheme:light;
+  --f-display:"Archivo",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --f-body:"Archivo",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --f-mono:"Space Mono",ui-monospace,"SF Mono",Menlo,monospace;
+  --r:16px; --nav-h:68px; --gut:max(20px,env(safe-area-inset-left,0px));
+  color-scheme:light;
 }
-
 *{box-sizing:border-box}
 [hidden]{display:none!important}
 html,body{height:100%}
-body{margin:0}
-body{background:radial-gradient(900px 420px at 100% -10%,#FFE3D3 0%,transparent 60%),radial-gradient(800px 420px at -10% 110%,#D6F5EF 0%,transparent 60%),var(--bg);background-attachment:fixed;color:var(--ink);font:15px/1.45 var(--f-body);-webkit-tap-highlight-color:transparent}
-body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:30;background:var(--surface)}
+body{margin:0;background:var(--bg);color:var(--ink);font:400 15px/1.45 var(--f-body);-webkit-font-smoothing:antialiased;-webkit-tap-highlight-color:transparent}
 button,input,select,textarea{font:inherit;color:inherit}
 button{cursor:pointer}
 :focus-visible{outline:2px solid var(--accent);outline-offset:2px}
-.num{font-family:var(--f-mono);font-variant-numeric:tabular-nums;letter-spacing:-.01em}
-
-.top{position:sticky;top:env(safe-area-inset-top,0px);z-index:20;background:color-mix(in srgb,var(--surface) 88%,transparent);-webkit-backdrop-filter:blur(12px);backdrop-filter:blur(12px);border-bottom:1px solid var(--line);box-shadow:inset 0 -3px 0 -1px transparent;
-  padding-block:10px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
-.top-in{max-width:780px;margin:0 auto;display:flex;align-items:center;gap:12px}
-.brand{display:flex;align-items:center;gap:10px;min-width:0;flex:1}
-.top::after{content:"";position:absolute;left:0;right:0;bottom:-1px;height:3px;background:var(--tropic)}
-.mark{width:34px;height:34px;border-radius:10px;background:var(--tropic);color:#fff;text-shadow:0 1px 2px rgba(80,20,20,.35);box-shadow:0 2px 8px rgba(255,111,97,.35);display:grid;place-items:center;font:800 13px/1 var(--f-display);font-stretch:80%;flex:none}
-.brand h1{margin:0;font:750 19px/1.1 var(--f-display);font-stretch:82%;letter-spacing:.005em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.brand small{display:block;font:500 11px/1.2 var(--f-body);color:var(--ink-3);letter-spacing:.06em;text-transform:uppercase}
-.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;border:1px solid var(--line);background:var(--surface);border-radius:10px;padding:9px 14px;font-weight:600;font-size:14px;min-height:40px;text-decoration:none;color:var(--ink)}
+.ic{width:20px;height:20px;flex:none;display:block}
+.num{font-family:var(--f-mono);font-weight:700;font-variant-numeric:tabular-nums;letter-spacing:-.03em}
 .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
-.cur{position:relative;flex:none}
-.cur select{appearance:none;-webkit-appearance:none;border:1px solid var(--line);background:var(--surface-2);color:var(--ink);border-radius:10px;min-height:40px;padding:8px 28px 8px 11px;font:600 14px var(--f-mono);cursor:pointer}
-.cur::after{content:"";position:absolute;right:11px;top:50%;width:7px;height:7px;border-right:2px solid var(--ink-2);border-bottom:2px solid var(--ink-2);transform:translateY(-70%) rotate(45deg);pointer-events:none}
-@media (max-width:420px){.top .btn.primary span{display:none}}
-.btn.primary{background:linear-gradient(135deg,#0BA39C,var(--accent));border-color:var(--accent);color:var(--accent-ink);box-shadow:0 2px 8px rgba(8,128,124,.25)}
-.btn.danger{color:var(--bad);border-color:color-mix(in srgb,var(--bad) 40%,var(--line))}
-.btn.danger.solid{background:var(--bad);color:#fff;border-color:var(--bad)}
-.btn.ghost{border-color:transparent;background:transparent}
-.btn.sm{min-height:32px;padding:5px 10px;font-size:13px;border-radius:8px}
-.btn:disabled{opacity:.5;cursor:default}
-.btn svg{width:18px;height:18px}
 
-main{padding-block:16px calc(var(--nav-h) + 28px + env(safe-area-inset-bottom,0px));padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
-.wrap{max-width:780px;margin:0 auto;display:flex;flex-direction:column;gap:20px}
-.banner{border:1px solid var(--line);background:var(--surface);border-radius:var(--r);padding:12px 14px;display:flex;gap:12px;align-items:center;flex-wrap:wrap;font-size:14px;color:var(--ink-2)}
-.banner b{color:var(--ink)}
-.banner.warn{border-color:color-mix(in srgb,var(--warn) 45%,var(--line));background:color-mix(in srgb,var(--warn) 8%,var(--surface))}
-.banner > span{flex:1;min-width:200px}
+main{padding:calc(env(safe-area-inset-top,0px) + 28px) var(--gut) calc(var(--nav-h) + 96px + env(safe-area-inset-bottom,0px))}
+.wrap{max-width:720px;margin:0 auto;display:flex;flex-direction:column;gap:24px}
+.sec{display:flex;flex-direction:column;gap:12px}
 
-h2.sec{margin:0;font:700 13px/1.2 var(--f-body);letter-spacing:.08em;text-transform:uppercase;color:var(--ink-3);display:flex;align-items:center;justify-content:space-between;gap:8px}
-.sec-block{display:flex;flex-direction:column;gap:10px}
-.greet{font:750 28px/1.1 var(--f-display);font-stretch:78%;margin:0;text-wrap:balance}
-.greet span{color:var(--ink-3);font-weight:600}
+/* page header */
+.ph{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
+.ph h1{margin:0;font:800 28px/1.15 var(--f-display);letter-spacing:-.01em}
+.ph p{margin:8px 0 0;color:var(--ink-3);font-size:15px}
+.round{width:44px;height:44px;border-radius:50%;display:grid;place-items:center;border:1px solid var(--line);background:var(--surface);color:var(--accent);flex:none;box-shadow:0 2px 6px rgba(120,60,40,.06);padding:0}
+.round.solid{background:var(--accent);border-color:var(--accent);color:#fff}
+.round.soft{background:var(--surface-2);border-color:transparent;color:var(--ink)}
+.round:disabled{opacity:.4;cursor:default}
+.avatar{width:46px;height:46px;border-radius:50%;display:grid;place-items:center;background:var(--accent-soft);color:var(--accent);font:700 16px var(--f-display);border:2px solid #fff;box-shadow:0 0 0 1px var(--line);flex:none;padding:0}
+.avatar.lg{width:64px;height:64px;font-size:22px}
 
-.stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
-@media (max-width:620px){.stats{grid-template-columns:repeat(2,minmax(0,1fr))}}
-.stat{background:var(--surface);border:1px solid var(--line);border-top:3px solid var(--sc,var(--accent));border-radius:var(--r);padding:12px 14px;box-shadow:0 1px 3px rgba(120,60,40,.06);display:flex;flex-direction:column;gap:4px;min-width:0;text-align:left}
-.stat .lbl{font-size:12px;color:var(--ink-3);font-weight:500}
-.stat .val{font:600 20px/1.15 var(--f-mono);font-variant-numeric:tabular-nums;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.stat .sub{font-size:12px;color:var(--ink-2)}
-.stat.bad .val{color:var(--bad)}
-.stats>.stat:nth-child(1){--sc:#2EC4B6}.stats>.stat:nth-child(2){--sc:#FFB347}.stats>.stat:nth-child(3){--sc:#FF6F61}.stats>.stat:nth-child(4){--sc:#9B5DE5}
-
-.list{display:flex;flex-direction:column;gap:8px}
-.job{display:grid;grid-template-columns:52px minmax(0,1fr) auto;gap:12px;align-items:center;width:100%;text-align:left;background:linear-gradient(90deg,color-mix(in srgb,var(--stc) 7%,var(--surface)),var(--surface) 40%);box-shadow:0 1px 3px rgba(120,60,40,.06);border:1px solid var(--line);border-left:4px solid var(--stc);border-radius:var(--r);padding:10px 12px}
-.job:hover{border-color:color-mix(in srgb,var(--stc) 50%,var(--line));border-left-color:var(--stc)}
-.job.st-heavy{border-left-style:dashed}
-.job.st-cancelled .job-title{text-decoration:line-through;color:var(--ink-3)}
-.job-date{display:flex;flex-direction:column;align-items:center;line-height:1}
-.job-date b{font:700 22px/1 var(--f-display);font-stretch:80%}
-.job-date small{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--ink-3);margin-top:3px}
-.job-main{display:flex;flex-direction:column;gap:3px;min-width:0}
-.job-title{font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.job-sub{font-size:13px;color:var(--ink-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.job-meta{display:flex;gap:6px;flex-wrap:wrap}
-.job-amt{font:500 14px var(--f-mono);font-variant-numeric:tabular-nums;color:var(--ink-2);text-align:right}
-.st-blocked{--stc:var(--st-blocked)}.st-heavy{--stc:var(--st-heavy)}.st-confirmed{--stc:var(--st-confirmed)}
-.st-completed{--stc:var(--st-completed)}.st-notdone{--stc:var(--st-notdone)}.st-cancelled{--stc:var(--st-cancelled)}
-
-.pill{display:inline-flex;align-items:center;gap:5px;font-size:12px;font-weight:600;padding:2px 8px;border-radius:999px;color:var(--stc,var(--ink-2));background:color-mix(in srgb,var(--stc,var(--ink-3)) 13%,transparent);white-space:nowrap}
-.pill::before{content:"";width:7px;height:7px;border-radius:50%;background:currentColor}
-.pill.st-heavy::before{background:transparent;border:1.5px dashed currentColor;width:6px;height:6px}
-.pill.st-blocked::before{border-radius:2px}
-.pp-paid{--stc:var(--good)}.pp-overdue{--stc:var(--bad)}.pp-part{--stc:var(--warn)}.pp-sent{--stc:var(--accent)}.pp-draft{--stc:var(--ink-3)}
-.tag{font-size:11px;font-weight:600;padding:2px 7px;border-radius:6px;background:var(--surface-2);color:var(--ink-2);text-transform:uppercase;letter-spacing:.05em}
-
-.empty{background:var(--surface);border:1px dashed var(--line);border-radius:var(--r);padding:22px 18px;text-align:center;color:var(--ink-2);display:flex;flex-direction:column;gap:10px;align-items:center}
-.empty b{color:var(--ink);font-size:16px}
-
-.attn{display:flex;flex-direction:column;background:var(--surface);border:1px solid var(--line);border-radius:var(--r);overflow:hidden}
-.attn button{display:flex;gap:10px;align-items:center;text-align:left;background:none;border:0;border-top:1px solid var(--line);padding:11px 14px;width:100%}
-.attn button:first-child{border-top:0}
-.attn .dot{width:9px;height:9px;border-radius:50%;flex:none;background:var(--stc)}
-.attn .t{flex:1;min-width:0}
-.attn .t b{display:block;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.attn .t small{color:var(--ink-2);font-size:13px}
-
-.toolbar{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
-.search{flex:1;min-width:180px;border:1px solid var(--line);background:var(--surface);border-radius:10px;padding:9px 12px;min-height:40px}
-.chips{display:flex;gap:6px;overflow-x:auto;padding-bottom:2px;scrollbar-width:none}
-.chips::-webkit-scrollbar{display:none}
-.chip{flex:none;border:1px solid var(--line);background:var(--surface);border-radius:999px;padding:6px 12px;font-size:13px;font-weight:600;color:var(--ink-2)}
-.chip[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
-.month-h{font:700 15px/1 var(--f-display);font-stretch:85%;letter-spacing:.02em;color:var(--ink-2);margin:8px 0 0;display:flex;justify-content:space-between}
-.month-h span{font:500 13px var(--f-mono);color:var(--ink-3)}
-
-/* calendar */
-.cal{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);overflow:hidden}
-.cal-nav{display:flex;align-items:center;justify-content:space-between;padding:10px 12px;border-bottom:1px solid var(--line)}
-.cal-nav h3{margin:0;font:750 19px/1 var(--f-display);font-stretch:80%}
-.cal-grid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr))}
-.cal-dow{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--ink-3);text-align:center;padding:8px 0;border-bottom:1px solid var(--line)}
-.cal-day{min-height:74px;border-right:1px solid var(--line);border-bottom:1px solid var(--line);padding:4px 3px;display:flex;flex-direction:column;gap:2px;background:none;border-top:0;border-left:0;text-align:left;min-width:0}
-.cal-day:nth-child(7n){border-right:0}
-.cal-day .dn{font:500 12px var(--f-mono);color:var(--ink-2);padding:1px 3px;border-radius:5px;align-self:flex-start}
-.cal-day.other .dn{color:var(--ink-3);opacity:.55}
-.cal-day.today .dn{background:var(--accent);color:var(--accent-ink)}
-.cal-day.sel{background:var(--accent-soft)}
-.cal-bar{font-size:10.5px;line-height:1.25;font-weight:600;padding:1px 4px;border-radius:4px;color:var(--stc);background:color-mix(in srgb,var(--stc) 16%,transparent);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.cal-bar.st-heavy{outline:1px dashed var(--stc);outline-offset:-1px;background:transparent}
-.cal-bar.st-blocked{background:repeating-linear-gradient(135deg,color-mix(in srgb,var(--stc) 22%,transparent) 0 4px,transparent 4px 8px)}
-.cal-bar.st-cancelled{text-decoration:line-through;opacity:.7}
-.cal-more{font-size:10px;color:var(--ink-3);padding-left:4px}
-.legend{display:flex;flex-wrap:wrap;gap:6px 12px;font-size:12px;color:var(--ink-2)}
-
-/* cards & forms */
-.card{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);box-shadow:0 1px 3px rgba(120,60,40,.06);padding:14px;display:flex;flex-direction:column;gap:12px}
-.client-row{display:flex;justify-content:space-between;gap:12px;align-items:center;width:100%;text-align:left;background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:12px 14px}
-.client-row .t{min-width:0}
-.client-row b{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.client-row small{color:var(--ink-2);font-size:13px}
-.client-row .r{text-align:right;font-size:13px;color:var(--ink-2);flex:none}
-.av{width:36px;height:36px;border-radius:50%;background:var(--tropic);color:#fff;display:grid;place-items:center;font:700 13px var(--f-display);flex:none}
-
-.field{display:flex;flex-direction:column;gap:5px;min-width:0}
-.field > span{font-size:12px;font-weight:600;color:var(--ink-2);letter-spacing:.02em}
-.field input,.field select,.field textarea,.inp{width:100%;border:1px solid var(--line);background:var(--bg);border-radius:9px;padding:9px 11px;min-height:42px}
-.field textarea{min-height:80px;resize:vertical}
-.grid2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
-.grid3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
-@media (max-width:520px){.grid3{grid-template-columns:repeat(2,minmax(0,1fr))}}
-.hint{font-size:12px;color:var(--ink-3)}
-.warnbox{font-size:13px;padding:9px 11px;border-radius:9px;background:color-mix(in srgb,var(--warn) 12%,transparent);color:var(--ink);border:1px solid color-mix(in srgb,var(--warn) 40%,transparent)}
-.switch{display:flex;align-items:center;justify-content:space-between;gap:12px;font-weight:500}
-.switch input{width:44px;height:26px;appearance:none;background:var(--surface-2);border:1px solid var(--line);border-radius:999px;position:relative;flex:none;transition:background .15s}
-.switch input::after{content:"";position:absolute;top:2px;left:2px;width:20px;height:20px;border-radius:50%;background:var(--surface);box-shadow:0 1px 2px rgba(0,0,0,.25);transition:transform .15s}
-.switch input:checked{background:var(--accent);border-color:var(--accent)}
-.switch input:checked::after{transform:translateX(18px)}
-.status-pick{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}
-.status-pick button{border:1px solid var(--line);background:var(--surface);border-radius:9px;padding:8px 6px;font-size:13px;font-weight:600;color:var(--stc);display:flex;align-items:center;justify-content:center;gap:6px;min-height:40px}
-.status-pick button[aria-pressed="true"]{background:var(--stc);border-color:var(--stc);color:var(--surface)}
-.status-pick button.st-heavy{border-style:dashed}
-
-.items{display:flex;flex-direction:column;gap:8px}
-.item{display:grid;grid-template-columns:minmax(0,1fr) 64px 92px 90px 34px;gap:6px;align-items:center}
-.item .amt{text-align:right;font:500 13px var(--f-mono);font-variant-numeric:tabular-nums}
-.item .inp{min-height:38px;padding:7px 8px;font-size:14px}
-@media (max-width:560px){.item{grid-template-columns:minmax(0,1fr) 58px 84px 34px}.item .desc{grid-column:1/-1}.item .amt{display:none}}
-.xbtn{width:34px;height:34px;border-radius:8px;border:1px solid var(--line);background:var(--surface);color:var(--ink-3);display:grid;place-items:center}
-.totals{display:grid;grid-template-columns:1fr auto;gap:4px 16px;font-size:14px;justify-items:end}
-.totals span:nth-child(odd){color:var(--ink-2);justify-self:start}
-.totals .grand{font-weight:700;font-size:16px;color:var(--ink)!important}
-
-.kv{display:grid;grid-template-columns:110px minmax(0,1fr);gap:8px 12px;margin:0;font-size:14px}
-.kv dt{color:var(--ink-3);font-weight:500}
-.kv dd{margin:0;min-width:0;overflow-wrap:anywhere}
-.copy{border:0;background:none;color:var(--accent);font-weight:600;font-size:13px;padding:0 0 0 8px}
-.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.sh{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.sh h2{margin:0;font:700 20px/1.2 var(--f-display)}
+.sh .row{gap:8px}
+.link{border:0;background:none;color:var(--accent);font-weight:700;font-size:14px;padding:6px 0;display:inline-flex;align-items:center;gap:4px;text-decoration:none}
+.link.muted{color:var(--ink-2)}
+.link.danger{color:var(--bad)}
+.cap{font:700 11px/1.2 var(--f-body);letter-spacing:.09em;text-transform:uppercase;color:var(--ink-3)}
+.cap.dark{color:var(--ink);font-size:14px;letter-spacing:.07em}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
 .row.end{justify-content:flex-end}
 .spacer{flex:1}
-table.t{width:100%;border-collapse:collapse;font-size:14px}
-table.t th{font-size:12px;text-align:left;color:var(--ink-3);font-weight:600;padding:6px 4px;border-bottom:1px solid var(--line)}
-table.t th.r{text-align:right}
-table.t td{padding:8px 4px;border-bottom:1px solid var(--line);vertical-align:top}
-table.t .r{text-align:right;font-family:var(--f-mono);font-variant-numeric:tabular-nums;white-space:nowrap}
-.tscroll{overflow-x:auto}
-.pay{display:flex;justify-content:space-between;gap:10px;align-items:center;padding:8px 0;border-bottom:1px solid var(--line);font-size:14px}
-.pay:last-child{border-bottom:0}
+.hint{font-size:13px;color:var(--ink-3)}
 
-.chart-box{position:relative;height:230px}
-.bar-list{display:flex;flex-direction:column;gap:8px}
-.bar-row{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:4px 10px;font-size:13px}
+/* buttons */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:46px;padding:10px 20px;border-radius:999px;border:1px solid var(--line);background:var(--surface);color:var(--ink);font-weight:700;font-size:14px;text-decoration:none;white-space:nowrap}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+.btn.danger{color:var(--bad);border-color:color-mix(in srgb,var(--bad) 35%,var(--line))}
+.btn.danger.solid{background:var(--bad);border-color:var(--bad);color:#fff}
+.btn.sm{min-height:36px;padding:6px 14px;font-size:13px}
+.btn:disabled{opacity:.45;cursor:default}
+.fab{position:fixed;right:max(20px,env(safe-area-inset-right,0px));bottom:calc(var(--nav-h) + 18px + env(safe-area-inset-bottom,0px));width:60px;height:60px;border-radius:50%;border:0;background:var(--accent);color:#fff;display:grid;place-items:center;box-shadow:0 10px 24px rgba(11,127,122,.35);z-index:15}
+.fab .ic{width:28px;height:28px}
+
+/* cards */
+.card{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:16px;display:flex;flex-direction:column;gap:14px;box-shadow:0 1px 2px rgba(120,60,40,.04)}
+.card.flush{padding:0;gap:0;overflow:hidden}
+.card h3{margin:0;font:700 17px/1.2 var(--f-display)}
+.banner{display:flex;gap:10px;align-items:center;padding:10px 12px;border-radius:12px;background:var(--surface);border:1px solid var(--line);font-size:13px;color:var(--ink-2)}
+.banner b{color:var(--ink)}
+.banner.warn{background:#FFF1DE;border-color:#F4D3A4}
+.banner>span{flex:1;min-width:0}
+.empty{background:var(--surface);border:1px dashed var(--line);border-radius:var(--r);padding:24px 18px;text-align:center;color:var(--ink-2);display:flex;flex-direction:column;gap:10px;align-items:center}
+.empty b{color:var(--ink);font-size:16px}
+
+/* stats */
+.stats{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+@media (min-width:640px){.stats{grid-template-columns:repeat(4,minmax(0,1fr))}}
+.stat{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:16px;text-align:left;display:flex;flex-direction:column;gap:6px;min-width:0;box-shadow:0 1px 2px rgba(120,60,40,.04)}
+.stat .v{font:600 26px/1.1 var(--f-display);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.stat i{display:block;width:34px;height:4px;border-radius:2px;background:var(--sc,var(--accent));margin-top:4px}
+.stat.bad .v{color:var(--bad)}
+
+/* attention */
+.alist{display:flex;flex-direction:column;gap:10px}
+.arow{display:flex;align-items:center;gap:14px;width:100%;text-align:left;background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:14px 16px}
+.arow .t{flex:1;min-width:0}
+.arow b{display:block;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.arow small{display:block;color:var(--ink-3);font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.arow .amt{font:700 14px var(--f-mono);white-space:nowrap;letter-spacing:-.03em}
+.arow>.ic{color:var(--ink-3)}
+.ibub{width:44px;height:44px;border-radius:50%;display:grid;place-items:center;flex:none;background:color-mix(in srgb,var(--stc,var(--accent)) 13%,#fff);color:var(--stc,var(--accent))}
+
+/* upcoming carousel */
+.carousel{display:flex;gap:14px;overflow-x:auto;scroll-snap-type:x mandatory;margin:0 calc(-1 * var(--gut));padding:2px var(--gut) 8px;scroll-padding:0 var(--gut);scrollbar-width:none}
+.carousel::-webkit-scrollbar{display:none}
+.ucard{flex:0 0 min(80%,300px);scroll-snap-align:start;background:var(--surface);border:1px solid var(--line);border-top:6px solid var(--stc);border-radius:var(--r);padding:14px 16px;text-align:left;display:flex;flex-direction:column;gap:8px;box-shadow:0 1px 2px rgba(120,60,40,.04)}
+.ucard .row{justify-content:space-between;flex-wrap:nowrap}
+.ucard .st{font:700 11px var(--f-body);letter-spacing:.06em;text-transform:uppercase;color:var(--stc)}
+.ucard .h{font:700 17px/1.25 var(--f-display);display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.ucard .foot{display:flex;justify-content:space-between;align-items:center;border-top:1px solid var(--line);padding-top:12px;margin-top:auto;font-size:13px;color:var(--ink-3)}
+.ucard .foot .num{color:var(--ink);font-size:16px}
+.badge{font:700 10.5px var(--f-body);letter-spacing:.06em;text-transform:uppercase;padding:5px 8px;border-radius:6px;background:var(--surface-2);color:var(--ink-3);white-space:nowrap}
+.meta{display:flex;flex-wrap:wrap;gap:4px 14px;font-size:13px;color:var(--ink-2);align-items:center}
+.meta>span{display:inline-flex;align-items:center;gap:5px;min-width:0}
+.meta .ic{width:15px;height:15px;color:var(--ink-3)}
+
+/* search, chips */
+.search{display:flex;align-items:center;gap:10px;background:var(--surface);border:1px solid var(--line);border-radius:999px;padding:0 18px;min-height:50px}
+.search .ic{color:var(--ink-2)}
+.search input{flex:1;border:0;background:none;outline:none;min-width:0;padding:12px 0;font-size:16px}
+.search input::placeholder{color:var(--ink-3)}
+.chips{display:flex;gap:8px;overflow-x:auto;scrollbar-width:none;margin:0 calc(-1 * var(--gut));padding:0 var(--gut)}
+.chips::-webkit-scrollbar{display:none}
+.chip{flex:none;border:1px solid var(--line);background:var(--surface);border-radius:999px;padding:9px 16px;font-size:13px;font-weight:700;color:var(--ink)}
+.chip[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:#fff}
+.chip .n{opacity:.55;margin-left:4px;font-family:var(--f-mono);font-weight:400}
+
+/* job cards */
+.dayh{display:flex;align-items:center;gap:10px;font:700 15px var(--f-display);margin:6px 0 -2px}
+.dayh::before{content:"";width:8px;height:8px;border-radius:50%;background:#E3D3C8}
+.dayh.today::before{background:var(--accent)}
+.list{display:flex;flex-direction:column;gap:12px}
+.jcard{display:flex;flex-direction:column;gap:6px;width:100%;text-align:left;background:var(--surface);border:1px solid var(--line);border-left:6px solid var(--stc);border-radius:var(--r);padding:14px 16px;box-shadow:0 1px 2px rgba(120,60,40,.04)}
+.jcard .top{display:flex;justify-content:space-between;align-items:flex-start;gap:10px}
+.jcard .h{font:700 17px/1.25 var(--f-display);min-width:0;overflow-wrap:anywhere}
+.jcard .sub{font-size:13px;color:var(--ink-3)}
+.jcard .bot{display:flex;justify-content:space-between;align-items:flex-end;gap:10px;margin-top:4px}
+.jcard .amt{font:700 16px var(--f-mono);white-space:nowrap;letter-spacing:-.03em}
+.jcard.st-cancelled{opacity:.6}
+.jcard.st-cancelled .h,.jcard.st-cancelled .amt{text-decoration:line-through}
+.sbadge{display:inline-flex;align-items:center;font:700 10px/1 var(--f-body);letter-spacing:.07em;text-transform:uppercase;padding:5px 8px;border-radius:999px;border:1px solid color-mix(in srgb,var(--stc) 45%,transparent);color:var(--stc);background:color-mix(in srgb,var(--stc) 6%,#fff);white-space:nowrap;flex:none}
+.st-blocked{--stc:var(--st-blocked)}.st-heavy{--stc:var(--st-heavy)}.st-confirmed{--stc:var(--st-confirmed)}
+.st-completed{--stc:var(--st-completed)}.st-notdone{--stc:var(--st-notdone)}.st-cancelled{--stc:var(--st-cancelled)}
+.pp-paid{--stc:var(--good)}.pp-overdue{--stc:var(--bad)}.pp-part{--stc:var(--warn)}.pp-sent{--stc:var(--st-completed)}.pp-draft{--stc:var(--ink-3)}
+.tone-accent{--stc:var(--accent)}
+
+/* calendar */
+.mnav{display:flex;align-items:center;justify-content:space-between}
+.mnav h2{margin:0;font:700 20px var(--f-display)}
+.icon-btn{border:0;background:none;color:var(--ink-2);width:36px;height:36px;display:grid;place-items:center;border-radius:50%;padding:0}
+.cal{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);overflow:hidden}
+.cal-grid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr))}
+.cal-dow{font:700 11px var(--f-body);letter-spacing:.04em;text-transform:uppercase;color:var(--ink-2);text-align:center;padding:10px 0;border-bottom:1px solid var(--line);background:var(--tint)}
+.cal-day{min-height:56px;border:0;border-right:1px solid var(--line-2);border-bottom:1px solid var(--line-2);background:none;padding:7px 6px 6px;display:flex;flex-direction:column;gap:3px;text-align:left;min-width:0}
+.cal-day:nth-child(7n){border-right:0}
+.cal-day .dn{font:700 14px var(--f-display);color:var(--ink);margin-bottom:auto}
+.cal-day.other{background:var(--tint)}
+.cal-day.other .dn{color:var(--ink-3);opacity:.6}
+.cal-day.today{background:var(--accent-soft)}
+.cal-day.today .dn{color:var(--accent)}
+.cal-day.sel{box-shadow:inset 0 0 0 2px var(--accent)}
+.cal-line{height:4px;border-radius:2px;background:var(--stc)}
+.cal-line.st-cancelled{opacity:.45}
+.cal-more{font:700 9px var(--f-body);color:var(--ink-3);line-height:1}
+.legend{display:flex;flex-wrap:wrap;gap:6px 14px;font-size:12px;color:var(--ink-2)}
+.legend span{display:inline-flex;align-items:center;gap:6px}
+.legend span::before{content:"";width:14px;height:4px;border-radius:2px;background:var(--stc)}
+.drow{display:flex;align-items:center;gap:14px;width:100%;text-align:left;background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:14px 16px}
+.drow .bar{width:6px;align-self:stretch;border-radius:3px;background:var(--stc);min-height:38px}
+.drow .t{flex:1;min-width:0}
+.drow b{display:block;font:700 16px/1.25 var(--f-display)}
+.drow small{display:block;color:var(--ink-3);font-size:13px}
+.drow>.ic{color:var(--ink-3)}
+
+/* clients */
+.letter{display:inline-grid;place-items:center;min-width:26px;height:24px;padding:0 6px;border-radius:6px;background:var(--accent-soft);color:var(--accent);font:700 13px var(--f-display);align-self:flex-start}
+.clients-list{padding-right:14px}
+.ccard{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:16px;display:flex;flex-direction:column;gap:14px;box-shadow:0 1px 2px rgba(120,60,40,.04)}
+.ccard .who{display:flex;gap:14px;align-items:center;border:0;background:none;padding:0;text-align:left;width:100%}
+.ccard .who .t{flex:1;min-width:0}
+.ccard .who b{display:block;font:700 17px var(--f-display);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ccard .who small{display:block;color:var(--ink-3);font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ccard .owed{text-align:right;font:700 12px var(--f-mono);color:var(--warn);flex:none}
+.cav{width:52px;height:52px;border-radius:50%;background:#FFF1E4;border:1px solid var(--line);color:var(--accent);display:grid;place-items:center;font:700 18px var(--f-display);flex:none}
+.cav.lg{width:68px;height:68px;font-size:24px}
+.cact{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.cact a,.cact span{display:grid;place-items:center;height:44px;border-radius:999px;background:var(--tint);border:1px solid var(--line);color:var(--accent);text-decoration:none}
+.cact span{opacity:.35}
+.az{position:fixed;right:max(2px,env(safe-area-inset-right,0px));top:calc(env(safe-area-inset-top,0px) + 140px);bottom:calc(var(--nav-h) + 16px + env(safe-area-inset-bottom,0px));display:flex;flex-direction:column;justify-content:space-between;z-index:5;max-height:620px}
+.az button{border:0;background:none;font:600 11px/1 var(--f-body);color:var(--ink-2);padding:2px 6px}
+.az button:disabled{opacity:.3;cursor:default}
+
+/* money */
+.hero .big{font:700 34px/1.1 var(--f-mono);letter-spacing:-.04em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.split{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;border-top:1px solid var(--line);padding-top:14px}
+.split>div{display:flex;flex-direction:column;gap:6px;min-width:0}
+.split .num{font-size:15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.chart-box{position:relative;height:220px}
+.icard{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:16px;display:flex;flex-direction:column;gap:14px;box-shadow:0 1px 2px rgba(120,60,40,.04)}
+.icard .top{display:flex;justify-content:space-between;gap:10px}
+.icard .top>span{min-width:0}
+.icard b{display:block;font:700 16px var(--f-display)}
+.icard small{display:block;color:var(--ink-3);font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.icard .r{text-align:right;flex:none}
+.icard .r .num{font-size:16px}
+.icard .due{display:block;font-size:11px;font-weight:700;margin-top:4px}
+.icard .acts{display:flex;gap:10px}
+.icard .acts .btn{flex:1}
+.bar-list{display:flex;flex-direction:column;gap:10px}
+.bar-row{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:6px 10px;font-size:14px}
+.bar-row .num{font-size:13px}
 .bar-row .track{grid-column:1/-1;height:6px;border-radius:3px;background:var(--surface-2);overflow:hidden}
-.bar-row .track i{display:block;height:100%;background:var(--tropic);border-radius:3px}
+.bar-row .track i{display:block;height:100%;background:var(--accent);border-radius:3px}
+.pay{display:flex;justify-content:space-between;gap:10px;align-items:center;padding:10px 0;border-bottom:1px solid var(--line);font-size:14px}
+.pay:last-child{border-bottom:0}
+.pay small{color:var(--ink-3)}
 
-/* nav */
-.tabs{position:fixed;left:0;right:0;bottom:0;z-index:20;background:color-mix(in srgb,var(--surface) 92%,transparent);-webkit-backdrop-filter:blur(12px);backdrop-filter:blur(12px);border-top:1px solid var(--line);
-  padding-bottom:env(safe-area-inset-bottom,0px);padding-left:max(8px,env(safe-area-inset-left,0px));padding-right:max(8px,env(safe-area-inset-right,0px))}
-.tabs-in{max-width:780px;margin:0 auto;display:grid;grid-template-columns:repeat(6,minmax(0,1fr));height:var(--nav-h)}
-.tab{border:0;background:none;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;font-size:11px;font-weight:600;color:var(--ink-3)}
-.tab svg{width:22px;height:22px}
-.tab[aria-current="page"]{color:var(--accent)}
-.tab[aria-current="page"] svg{filter:drop-shadow(0 2px 4px rgba(8,128,124,.3))}
+/* settings */
+.slist{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);overflow:hidden}
+.srow{display:flex;align-items:center;gap:14px;width:100%;border:0;border-top:1px solid var(--line);background:none;padding:14px 16px;text-align:left;font-weight:600;font-size:15px}
+.srow:first-child{border-top:0}
+.srow .t{flex:1;min-width:0}
+.srow .v{font:700 12px var(--f-body);color:var(--ink-3)}
+.srow .ibub{width:38px;height:38px}
+.srow .ibub .ic{width:18px;height:18px}
+.srow>.ic{color:var(--ink-3);width:18px;height:18px}
+.profile{display:flex;gap:16px;align-items:center}
+.profile b{display:block;font:700 19px var(--f-display)}
+.profile small{display:block;color:var(--ink-3);font-size:14px;margin:2px 0 4px}
+.ver{text-align:center;font:700 10.5px var(--f-body);letter-spacing:.08em;color:var(--ink-3);text-transform:uppercase}
+.kv{display:grid;grid-template-columns:118px minmax(0,1fr);gap:10px 12px;margin:0;font-size:14px}
+.kv dt{color:var(--ink-3);font-weight:600}
+.kv dd{margin:0;min-width:0;overflow-wrap:anywhere}
+.copy{border:0;background:none;color:var(--accent);font-weight:700;font-size:13px;padding:0 0 0 8px}
 
-/* sheet */
-.sheet{position:fixed;inset:0;z-index:40;display:flex;align-items:flex-end;justify-content:center;background:rgba(43,29,48,.38)}
-.sheet-card{background:var(--bg);width:100%;max-width:780px;height:calc(100% - env(safe-area-inset-top,0px) - 12px);border-radius:16px 16px 0 0;display:flex;flex-direction:column;overflow:hidden;box-shadow:0 -10px 40px rgba(0,0,0,.25)}
-@media (min-width:820px){.sheet{align-items:center}.sheet-card{height:min(92%,900px);border-radius:16px}}
-.sheet-head{display:flex;align-items:center;gap:8px;padding:10px 12px;background:var(--surface);border-bottom:1px solid var(--line)}
-.sheet-head h2{flex:1;margin:0;font:750 18px/1.15 var(--f-display);font-stretch:82%;text-align:center;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.sheet-body{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:16px max(16px,env(safe-area-inset-right,0px)) calc(28px + env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px));display:flex;flex-direction:column;gap:16px}
-.sheet-foot{display:flex;gap:8px;padding:10px 16px calc(10px + env(safe-area-inset-bottom,0px));background:var(--surface);border-top:1px solid var(--line)}
+/* sheets */
+.sheet{position:fixed;inset:0;z-index:40;display:flex;align-items:flex-end;justify-content:center;background:rgba(43,29,48,.35)}
+.sheet-card{position:relative;background:var(--bg);width:100%;max-width:720px;height:calc(100% - env(safe-area-inset-top,0px) - 8px);border-radius:22px 22px 0 0;display:flex;flex-direction:column;overflow:hidden;box-shadow:0 -10px 40px rgba(0,0,0,.18)}
+@media (min-width:780px){.sheet{align-items:center}.sheet-card{height:min(92%,900px);border-radius:22px}}
+.sheet-head{display:flex;align-items:center;gap:8px;padding:14px 16px;background:var(--surface);border-bottom:1px solid var(--line)}
+.sheet-head h2{flex:1;margin:0;text-align:center;font:700 18px var(--f-display);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+.tbtn{border:0;background:none;font-weight:700;font-size:15px;padding:8px 2px;min-width:64px;text-align:left;color:var(--ink)}
+.tbtn.r{text-align:right;color:var(--accent)}
+.sheet-sub{background:var(--surface);border-bottom:1px solid var(--line);padding:12px 16px 16px;display:flex;flex-direction:column;gap:10px}
+.sheet-body{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:20px var(--gut) calc(36px + env(safe-area-inset-bottom,0px));display:flex;flex-direction:column;gap:20px}
+.sheet-foot{display:flex;gap:10px;padding:12px 16px calc(12px + env(safe-area-inset-bottom,0px));background:var(--surface);border-top:1px solid var(--line)}
 .sheet-foot .btn{flex:1}
-.detail-head{display:flex;flex-direction:column;gap:6px}
-.detail-head h3{margin:0;font:750 26px/1.1 var(--f-display);font-stretch:78%;text-wrap:balance}
-.detail-head .when{color:var(--ink-2);font-size:14px}
+.menu{position:absolute;right:16px;top:66px;z-index:6;background:var(--surface);border:1px solid var(--line);border-radius:14px;box-shadow:0 12px 32px rgba(43,29,48,.16);padding:6px;min-width:220px;display:flex;flex-direction:column}
+.menu button{display:flex;align-items:center;gap:12px;border:0;background:none;padding:12px;border-radius:10px;text-align:left;font-weight:600}
+.menu button:hover{background:var(--surface-2)}
+.menu button .ic{width:18px;height:18px;color:var(--ink-3)}
+.menu .danger,.menu .danger .ic{color:var(--bad)}
+.spills{display:flex;gap:8px;overflow-x:auto;scrollbar-width:none}
+.spills::-webkit-scrollbar{display:none}
+.spills button{flex:none;border:1px solid var(--line);background:var(--surface);border-radius:999px;padding:9px 16px;font-weight:700;font-size:13px;color:var(--ink)}
+.spills button[aria-pressed="true"]{background:var(--stc);border-color:var(--stc);color:#fff}
+.dtitle{display:flex;flex-direction:column;gap:8px}
+.dtitle h3{margin:0;font:800 26px/1.15 var(--f-display);text-wrap:balance}
+.dtitle .meta{font-size:14px}
 
-.toast{position:fixed;left:50%;bottom:calc(var(--nav-h) + 16px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);z-index:60;background:var(--ink);color:var(--surface);padding:10px 16px;border-radius:10px;font-size:14px;font-weight:500;max-width:min(92vw,520px);box-shadow:0 6px 20px rgba(0,0,0,.25);text-align:center}
-.toast.err{background:var(--bad);color:#fff}
+.lines .ln{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;padding:14px 16px;border-bottom:1px solid var(--line)}
+.lines .ln:last-child{border-bottom:0}
+.lines .ln b{display:block;font-weight:700}
+.lines .ln small{display:block;color:var(--ink-3);font-size:12.5px;margin-top:2px}
+.lines .ln .num{font-size:15px;white-space:nowrap}
+.lines .ln.subt{padding:10px 16px;font-size:14px;color:var(--ink-2);border-bottom:0}
+.lines .ln.subt .num{font-size:14px;color:var(--ink-2)}
+.lines .ln.subt+.ln.subt{padding-top:0}
+.lines .ln.total{background:var(--tint);border-top:1px solid var(--line);align-items:center}
+.lines .ln.total b{font-weight:600;color:var(--ink-2)}
+.lines .ln.total .num{color:var(--accent);font-size:20px}
+
+.doc .hd{display:flex;align-items:center;gap:12px}
+.doc .hd .t{flex:1;min-width:0}
+.doc .hd b{display:block;font:700 16px var(--f-display)}
+.doc .hd small{display:block;color:var(--ink-3);font-size:13px}
+.doc .acts{display:flex;gap:10px;align-items:center}
+.doc .acts .btn{flex:1}
+.doc .more{display:flex;flex-wrap:wrap;gap:2px 18px}
+.doc .more .link{font-size:13px}
+details.dates summary{cursor:pointer;color:var(--ink-3);font-size:13px;font-weight:600;list-style:none}
+details.dates summary::-webkit-details-marker{display:none}
+details.dates[open] summary{margin-bottom:10px}
+
+/* forms */
+.form{display:flex;flex-direction:column;gap:20px}
+.field{display:flex;flex-direction:column;gap:8px;min-width:0}
+.field>span{font:700 11px var(--f-body);letter-spacing:.09em;text-transform:uppercase;color:var(--ink-3)}
+.field input,.field select,.field textarea{width:100%;border:1px solid var(--line);background:var(--surface);border-radius:14px;padding:12px 16px;min-height:52px;font-size:16px}
+.field select{appearance:none;-webkit-appearance:none;background:var(--surface) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%235E4C64' stroke-width='2' stroke-linecap='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E") no-repeat right 14px center/18px;padding-right:40px}
+.field textarea{min-height:96px;resize:vertical}
+.field input::placeholder,.field textarea::placeholder{color:#B7A9BC}
+.grid2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+.grid3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}
+@media (max-width:520px){.grid3{grid-template-columns:repeat(2,minmax(0,1fr))}}
+#clash:empty{display:none}
+hr.sep{border:0;border-top:1px solid var(--line);margin:4px 0;width:100%}
+.warnbox{font-size:13px;padding:10px 12px;border-radius:12px;background:#FFF1DE;color:var(--ink);border:1px solid #F4D3A4}
+.switch{display:flex;align-items:center;justify-content:space-between;gap:12px;font-weight:600}
+.switch small{font-weight:400}
+.switch input{width:48px;height:28px;appearance:none;-webkit-appearance:none;background:#E9DCD3;border:0;border-radius:999px;position:relative;flex:none;transition:background .15s;margin:0}
+.switch input::after{content:"";position:absolute;top:3px;left:3px;width:22px;height:22px;border-radius:50%;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.2);transition:transform .15s}
+.switch input:checked{background:var(--accent)}
+.switch input:checked::after{transform:translateX(20px)}
+.items{display:flex;flex-direction:column;gap:10px}
+.item{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:12px 14px;display:grid;grid-template-columns:minmax(0,1fr) 70px 104px 104px 90px 28px;gap:8px;align-items:center}
+.item .inp{width:100%;min-height:40px;border:1px solid var(--line-2);border-radius:10px;padding:8px 10px;font-size:16px;background:var(--tint)}
+.item .desc{font-weight:700;border-color:transparent;background:transparent;padding-left:0}
+.item .amt{text-align:right;font:700 13px var(--f-mono);letter-spacing:-.03em}
+@media (max-width:560px){.item{grid-template-columns:64px minmax(0,1fr) minmax(0,1fr) 28px}.item .desc{grid-column:1/4;grid-row:1}.item .xbtn{grid-column:4;grid-row:1}.item .amt{display:none}}
+.xbtn{width:26px;height:26px;border-radius:50%;border:0;background:#CFC5D3;color:#fff;display:grid;place-items:center;padding:0}
+.xbtn .ic{width:14px;height:14px}
+.total-card{display:flex;justify-content:space-between;align-items:center;gap:12px;background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:18px 16px;box-shadow:0 1px 2px rgba(120,60,40,.04)}
+.total-card .lbl{font-weight:700;color:var(--ink-2)}
+.total-card .lbl small{display:block;font-weight:400;color:var(--ink-3);font-size:12.5px;margin-top:2px}
+.total-card .num{color:var(--accent);font-size:22px;white-space:nowrap}
+
+/* tabs */
+.tabs{position:fixed;left:0;right:0;bottom:0;z-index:20;background:var(--surface);border-top:1px solid var(--line);padding-bottom:env(safe-area-inset-bottom,0px);padding-left:env(safe-area-inset-left,0px);padding-right:env(safe-area-inset-right,0px)}
+.tabs-in{max-width:720px;margin:0 auto;display:grid;grid-template-columns:repeat(6,minmax(0,1fr));height:var(--nav-h)}
+.tab{border:0;background:none;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;font:600 11px var(--f-body);color:var(--ink-2)}
+.tab .ic{width:24px;height:24px;color:#7E6F84}
+.tab[aria-current="page"]{color:var(--accent);font-weight:700}
+.tab[aria-current="page"] .ic{color:var(--accent)}
+
+.toast{position:fixed;left:50%;bottom:calc(var(--nav-h) + 18px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);z-index:60;background:var(--ink);color:#fff;padding:11px 18px;border-radius:999px;font-size:14px;font-weight:600;max-width:min(92vw,520px);box-shadow:0 8px 24px rgba(0,0,0,.2);text-align:center}
+.toast.err{background:var(--bad)}
 .spin{width:16px;height:16px;border-radius:50%;border:2px solid currentColor;border-right-color:transparent;animation:sp .7s linear infinite}
 @keyframes sp{to{transform:rotate(360deg)}}
 @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
 </style>
 
-<header class="top"><div class="top-in">
-  <div class="brand"><div class="mark" aria-hidden="true">360</div><div style="min-width:0"><h1>My Booking 360</h1><small id="topSub">Bookings · Invoices · Money</small></div></div>
-  <label class="cur" title="Currency"><span class="sr">Currency</span><select id="curSel" aria-label="Currency"></select></label>
-  <button class="btn primary" data-act="newJob" aria-label="New booking"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg><span>Booking</span></button>
-</div></header>
 
 <main><div class="wrap" id="view"></div></main>
 
@@ -259,13 +355,6 @@ const METHODS=['EFT','Instant EFT / PayShap','Card','Cash','SnapScan / Zapper','
 const DEFAULTS={businessName:'',ownerName:'',abn:'',email:'',phone:'',address:'',gstRegistered:true,gstRate:15,currency:'ZAR',
   termsDays:30,invoicePrefix:'INV-',nextInvoiceNo:1001,bankName:'',accountName:'',bsb:'',accountNo:'',accountType:'',swift:'',regNo:'',travelRate:4.76,timeZone:'Africa/Johannesburg',region:'ZA',
   invoiceNotes:'Thank you for your business.',quotePrefix:'QUO-',nextQuoteNo:1001,quoteValidDays:30,defaultRate:0,defaultUnit:'day',crew:'',autoSync:true};
-const ICONS={
-  home:'<path d="M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/>',
-  jobs:'<rect x="3" y="7" width="18" height="13" rx="2"/><path d="M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M3 13h18"/>',
-  cal:'<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M16 3v4M8 3v4M3 10h18"/>',
-  clients:'<circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0M16 4.5a3.5 3.5 0 0 1 0 7M18 14a6 6 0 0 1 3.5 6"/>',
-  money:'<path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/>',
-  more:'<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.6 1.6 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.6 1.6 0 0 0-1.8-.3 1.6 1.6 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.6 1.6 0 0 0-1-1.5 1.6 1.6 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.6 1.6 0 0 0 .3-1.8 1.6 1.6 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.6 1.6 0 0 0 1.5-1 1.6 1.6 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.6 1.6 0 0 0 1.8.3H9a1.6 1.6 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.6 1.6 0 0 0 1 1.5 1.6 1.6 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.6 1.6 0 0 0-.3 1.8V9a1.6 1.6 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.6 1.6 0 0 0-1.5 1z"/>'};
 const TABS=[['home','Home'],['jobs','Jobs'],['cal','Calendar'],['clients','Clients'],['money','Money'],['more','Settings']];
 
 /* ---------- state ---------- */
@@ -310,8 +399,8 @@ function payState(j){
   return j.invoice.sentAt?'sent':'draft';
 }
 const PAYLBL={paid:'Paid',overdue:'Overdue',part:'Part paid',sent:'Invoiced',draft:'Invoice not sent'};
-const stPill=k=>`<span class="pill st-${k}">${esc(ST[k]?.label||k)}</span>`;
-const payPill=p=>p?`<span class="pill pp-${p}">${PAYLBL[p]}</span>`:'';
+const stPill=k=>`<span class="sbadge st-${k}">${esc(ST[k]?.label||k)}</span>`;
+const payPill=p=>p?`<span class="sbadge pp-${p}">${PAYLBL[p]}</span>`:'';
 
 function toast(msg,err){const t=$('#toast');t.textContent=msg;t.className='toast'+(err?' err':'');t.hidden=false;clearTimeout(toast._t);toast._t=setTimeout(()=>t.hidden=true,err?6000:3200)}
 async function copyText(txt){try{await navigator.clipboard.writeText(txt);toast('Copied')}catch{toast('Copy not available here — press and hold to select it')}}
@@ -353,94 +442,155 @@ async function boot(){
   db.collection('jobs').onSnapshot(s=>{S.jobs=s.docs.map(d=>({...d.data(),id:d.id}));sortJobs();ready()},()=>ready());
 }
 
+/* ---------- icons ---------- */
+const st_=p=>`<g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${p}</g>`;
+const IC={
+  home:'<path fill="currentColor" d="M12 3.2 2.7 10.5a1 1 0 0 0 .6 1.8H5V20a1 1 0 0 0 1 1h4v-6h4v6h4a1 1 0 0 0 1-1v-7.7h1.7a1 1 0 0 0 .6-1.8z"/>',
+  jobs:'<path fill="currentColor" d="M9 3h6a2 2 0 0 1 2 2v2h3a2 2 0 0 1 2 2v3.5H2V9a2 2 0 0 1 2-2h3V5a2 2 0 0 1 2-2zm0 2v2h6V5zM2 14h8v1.5h4V14h8v5a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2z"/>',
+  cal:'<path fill="currentColor" d="M7 2h2v2h6V2h2v2h2a2 2 0 0 1 2 2v13a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2zM5 9v10h14V9zm2 2h2v2H7zm4 0h2v2h-2zm4 0h2v2h-2zm-8 4h2v2H7zm4 0h2v2h-2zm4 0h2v2h-2z"/>',
+  clients:'<path fill="currentColor" d="M12 4a3.5 3.5 0 1 1 0 7 3.5 3.5 0 0 1 0-7zM5.5 6a2.5 2.5 0 1 1 0 5 2.5 2.5 0 0 1 0-5zm13 0a2.5 2.5 0 1 1 0 5 2.5 2.5 0 0 1 0-5zM12 12.5c3.6 0 6 1.9 6 4.5v2H6v-2c0-2.6 2.4-4.5 6-4.5zM5 13c.5 0 1 .05 1.4.15A5.3 5.3 0 0 0 4.5 17v2H1v-1.8C1 14.8 2.7 13 5 13zm14 0c2.3 0 4 1.8 4 4.2V19h-3.5v-2a5.3 5.3 0 0 0-1.9-3.85c.4-.1.9-.15 1.4-.15z"/>',
+  money:'<path fill="currentColor" d="M4 5h14a2 2 0 0 1 2 2v1h-5a4 4 0 0 0 0 8h5v1a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2zm11 5h7v4h-7a2 2 0 0 1 0-4zm0 1.2a.8.8 0 1 0 0 1.6.8.8 0 0 0 0-1.6z"/>',
+  more:'<path fill="currentColor" fill-rule="evenodd" d="M10.3 2h3.4l.5 2.6c.6.2 1.2.5 1.7.9l2.5-.9 1.7 2.9-2 1.7a7 7 0 0 1 0 1.9l2 1.7-1.7 2.9-2.5-.9c-.5.4-1.1.7-1.7.9l-.5 2.6h-3.4l-.5-2.6a7 7 0 0 1-1.7-.9l-2.5.9-1.7-2.9 2-1.7a7 7 0 0 1 0-1.9l-2-1.7 1.7-2.9 2.5.9c.5-.4 1.1-.7 1.7-.9zM12 8.6a2.9 2.9 0 1 0 0 5.8 2.9 2.9 0 0 0 0-5.8z" transform="translate(0 .5)"/>',
+  phone:'<path fill="currentColor" d="M6.6 10.8a15.1 15.1 0 0 0 6.6 6.6l2.2-2.2a1 1 0 0 1 1-.25c1.1.37 2.3.57 3.6.57a1 1 0 0 1 1 1V20a1 1 0 0 1-1 1A17 17 0 0 1 3 4a1 1 0 0 1 1-1h3.5a1 1 0 0 1 1 1c0 1.25.2 2.45.57 3.6a1 1 0 0 1-.25 1z"/>',
+  wa:'<path fill="currentColor" d="M12 2a10 10 0 0 0-8.6 15.1L2 22l5-1.3A10 10 0 1 0 12 2zm0 1.8a8.2 8.2 0 1 1-4.2 15.2l-.3-.2-3 .8.8-2.9-.2-.3A8.2 8.2 0 0 1 12 3.8zm-3.3 4.4c-.2 0-.5 0-.7.3-.3.3-1 .9-1 2.3s1 2.7 1.2 2.9c.1.2 2 3.1 4.9 4.3 2.4.9 2.9.8 3.4.7.5-.1 1.7-.7 1.9-1.4.2-.7.2-1.2.2-1.4-.1-.1-.3-.2-.6-.3l-1.9-.9c-.3-.1-.5-.1-.7.1l-.9 1.1c-.2.2-.3.2-.6.1-.3-.1-1.2-.4-2.2-1.4-.8-.7-1.4-1.6-1.5-1.9-.2-.3 0-.4.1-.6l.4-.5.3-.5v-.5l-.9-2.1c-.2-.5-.4-.5-.6-.5z"/>',
+  mail:'<path fill="currentColor" d="M3 5h18a1 1 0 0 1 1 1v12a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1zm1.4 2 7.6 5.3L19.6 7zM4 9.2V17h16V9.2l-7.4 5.1a1 1 0 0 1-1.2 0z"/>',
+  dots:'<circle cx="5" cy="12" r="2" fill="currentColor"/><circle cx="12" cy="12" r="2" fill="currentColor"/><circle cx="19" cy="12" r="2" fill="currentColor"/>',
+  search:st_('<circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/>'),
+  clock:st_('<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>'),
+  pin:st_('<path d="M12 21s-7-6.2-7-11.5a7 7 0 0 1 14 0C19 14.8 12 21 12 21z"/><circle cx="12" cy="9.5" r="2.5"/>'),
+  date:st_('<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M16 3v4M8 3v4M3 10h18"/>'),
+  chev:st_('<path d="m9 6 6 6-6 6"/>'),
+  chevL:st_('<path d="m15 6-6 6 6 6"/>'),
+  back:st_('<path d="M19 12H5m6-6-6 6 6 6"/>'),
+  pdf:'<path fill="currentColor" d="M6 2h8l5 5v13a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2zm7 1.5V8h4.5z"/><text x="12" y="18.2" text-anchor="middle" font-family="Archivo,Arial,sans-serif" font-size="5.6" font-weight="800" fill="#fff">PDF</text>',
+  quote:st_('<path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5M9 12h6M9 16h6"/>'),
+  inv:st_('<path d="M6 3h12v18l-3-2-3 2-3-2-3 2z"/><path d="M9.5 8h5M9.5 12h5M9.5 16h3"/>'),
+  calplus:st_('<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M16 3v4M8 3v4M3 10h18M12 13v5M9.5 15.5h5"/>'),
+  userplus:st_('<circle cx="9" cy="8" r="4"/><path d="M2 21a7 7 0 0 1 14 0M19 8v6M16 11h6"/>'),
+  shield:st_('<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>'),
+  brief:st_('<rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/>'),
+  bank:st_('<path d="M3 21h18M5 18v-7M9.5 18v-7M14.5 18v-7M19 18v-7M2 9l10-6 10 6z"/>'),
+  tax:st_('<path d="M19 5 5 19"/><circle cx="7" cy="7" r="2.5"/><circle cx="17" cy="17" r="2.5"/>'),
+  sync:st_('<path d="M21 12a9 9 0 0 1-15.5 6.2L3 16M3 12a9 9 0 0 1 15.5-6.2L21 8"/><path d="M21 3v5h-5M3 21v-5h5"/>'),
+  plus:st_('<path d="M12 5v14M5 12h14"/>'),
+  x:st_('<path d="M18 6 6 18M6 6l12 12"/>'),
+  check:st_('<path d="M20 6 9 17l-5-5"/>'),
+  clash:st_('<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M16 3v4M8 3v4M3 10h18M10 13.5l4 4M14 13.5l-4 4"/>'),
+  edit:st_('<path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/>'),
+  copy:st_('<rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/>'),
+  trash:st_('<path d="M3 6h18M8 6V4h8v2M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>'),
+  share:st_('<path d="M12 3v13M7 8l5-5 5 5"/><path d="M5 14v5a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-5"/>'),
+};
+const ic=(n,cls='')=>`<svg class="ic ${cls}" viewBox="0 0 24 24" aria-hidden="true">${IC[n]||''}</svg>`;
+
 /* ---------- rendering ---------- */
 function renderTabs(){
-  $('#tabs').innerHTML=TABS.map(([k,l])=>`<button class="tab" data-act="tab" data-v="${k}" ${S.view===k?'aria-current="page"':''}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${ICONS[k]}</svg>${l}</button>`).join('');
+  $('#tabs').innerHTML=TABS.map(([k,l])=>`<button class="tab" data-act="tab" data-v="${k}" ${S.view===k?'aria-current="page"':''}>${ic(k)}${l}</button>`).join('');
 }
 function render(){
   S.charts.forEach(c=>{try{c.destroy()}catch{}});S.charts=[];
-  const v=$('#view'),cs=$('#curSel'),cur=S.settings.currency||'ZAR';
-  if(cs.dataset.v!==cur){cs.innerHTML=CURRENCIES.some(c=>c[0]===cur)?CURRENCIES.map(([k])=>`<option value="${k}" ${k===cur?'selected':''}>${k}</option>`).join(''):`<option selected>${esc(cur)}</option>`+CURRENCIES.map(([k])=>`<option>${k}</option>`).join('');cs.dataset.v=cur}
-  cs.disabled=S.mode==='loading'||S.mode==='notowner';
+  const v=$('#view');
   if(S.mode==='loading'){v.innerHTML=`<div class="empty"><div class="spin"></div><span>Loading your bookings…</span></div>`;return}
   if(S.mode==='notowner'){v.innerHTML=`<div class="empty"><b>This booking book is private</b><span>Only its owner can see and change the bookings, clients and invoices in My Booking 360.</span></div>`;return}
   const views={home:vHome,jobs:vJobs,cal:vCal,clients:vClients,money:vMoney,more:vMore};
-  v.innerHTML=banners()+(views[S.view]||vHome)();
+  v.innerHTML=(views[S.view]||vHome)();
   if(S.view==='money')drawCharts();
   if(S.openJobId&&!$('#sheet').hidden&&$('#sheetCard').dataset.kind==='job')openJob(S.openJobId,true);
 }
+const page=(title,sub,right,body)=>`<div class="ph"><div><h1>${title}</h1>${sub?`<p>${sub}</p>`:''}</div>${right||''}</div>${banners()}${body}`;
 function banners(){
   let b='';
-  if(S.mode==='local')b+=`<div class="banner warn"><span><b>Saved on this device only.</b> Open My Booking 360 from claude.ai while signed in to keep bookings in your account, sync your calendar and email invoices.</span></div>`;
-  if(S.jobs.some(j=>j.example)||S.clients.some(c=>c.example))b+=`<div class="banner"><span><b>You are looking at example bookings.</b> They show how the app works. Remove them when you are ready to add your own.</span><button class="btn sm" data-act="clearExamples">Remove examples</button></div>`;
-  if(S.mode==='live'&&S.loaded&&!S.settings.businessName)b+=`<div class="banner"><span><b>Add your business details</b> so your invoices show your name, VAT number and bank details.</span><button class="btn sm" data-act="tab" data-v="more">Set up</button></div>`;
+  if(S.mode==='local')b+=`<div class="banner warn"><span><b>Saved on this device only.</b> Open My Booking 360 from claude.ai to keep bookings in your account and use Calendar and Gmail.</span></div>`;
+  if(S.jobs.some(j=>j.example)||S.clients.some(c=>c.example))b+=`<div class="banner"><span><b>Showing example bookings.</b></span><button class="btn sm" data-act="clearExamples">Remove</button></div>`;
+  if(S.mode==='live'&&S.loaded&&!S.settings.businessName)b+=`<div class="banner"><span><b>Add your business details</b> for your quotes and invoices.</span><button class="btn sm" data-act="setGroup" data-v="profile">Set up</button></div>`;
   return b;
 }
-function jobCard(j){
-  const c=client(j.clientId),t=totals(j),d=pd(j.start)||new Date();
-  const sub=[c?.name||'No client',j.engineer,j.venue].filter(Boolean).map(esc).join(' · ');
-  return `<button class="job st-${j.status}" data-act="openJob" data-id="${j.id}">
-    <span class="job-date"><b>${d.getDate()}</b><small>${d.toLocaleDateString('en-ZA',{month:'short'})}</small></span>
-    <span class="job-main"><span class="job-title">${esc(j.title||'Untitled job')}</span><span class="job-sub">${sub}${jobEnd(j)!==j.start?` · ${daysBetween(j.start,jobEnd(j))+1} days`:''}</span>
-    <span class="job-meta">${stPill(j.status)}${payPill(payState(j))}${j.example?'<span class="tag">Example</span>':''}</span></span>
-    <span class="job-amt">${t.total?money(t.total):''}</span></button>`;
+const timeText=j=>j.callTime?`${j.callTime}${j.finishTime?' – '+j.finishTime:''}`:'All day';
+function dayLabel(s){
+  const t=today();if(s===t)return `Today, ${fmtD(s,{day:'numeric',month:'long'})}`;
+  if(s===addDays(t,1))return `Tomorrow, ${fmtD(s,{day:'numeric',month:'long'})}`;
+  return fmtD(s,{weekday:'long',day:'numeric',month:'long',...(s.slice(0,4)!==t.slice(0,4)?{year:'numeric'}:{})});
 }
-function emptyJobs(msg){return `<div class="empty"><b>${msg}</b><span>Add a booking with the dates, client, engineer and rates. You can hold dates as a heavy pencil and confirm later.</span><button class="btn primary" data-act="newJob">Add a booking</button></div>`}
+function jobCard(j){
+  const c=client(j.clientId),t=totals(j),ps=payState(j),nd=daysBetween(j.start,jobEnd(j))+1;
+  return `<button class="jcard st-${j.status}" data-act="openJob" data-id="${j.id}">
+    <span class="top"><span class="h">${esc(j.title||'Untitled job')}</span><span class="sbadge st-${j.status}">${esc(ST[j.status]?.label||j.status)}</span></span>
+    <span class="sub">${esc([c?.name||'No client',j.engineer].filter(Boolean).join(' · '))}</span>
+    <span class="bot"><span class="meta"><span>${ic('clock')}${esc(timeText(j))}</span>${j.venue?`<span>${ic('pin')}${esc(j.venue)}</span>`:''}${nd>1?`<span>${nd} days</span>`:''}${ps?`<span class="sbadge pp-${ps}">${PAYLBL[ps]}</span>`:''}${j.example?'<span class="badge">Example</span>':''}</span>
+    <span class="amt">${t.total?money(t.total):''}</span></span></button>`;
+}
+function emptyJobs(msg){return `<div class="empty"><b>${msg}</b><span>Add a booking with the dates, client, engineer and rates. Hold dates as a heavy pencil and confirm later.</span><button class="btn primary" data-act="newJob">Add a booking</button></div>`}
 
+const ACTIVE=['blocked','heavy','confirmed'];
+const sameCrew=(a,b)=>!a.engineer||!b.engineer||a.engineer.trim().toLowerCase()===b.engineer.trim().toLowerCase();
 function attention(){
   const t=today(),out=[];
   S.jobs.forEach(j=>{
     const ps=payState(j),c=client(j.clientId)?.name||'No client';
-    if(ps==='overdue')out.push({j,st:'notdone',w:0,b:`Overdue: ${j.invoice.no} · ${money(totals(j).balance)}`,s:`${c} · due ${fmtD(j.invoice.due)}`});
-    else if(j.status==='completed'&&!j.invoice&&totals(j).total>0)out.push({j,st:'completed',w:1,b:`Ready to invoice: ${j.title}`,s:`${c} · ${money(totals(j).total)}`});
-    else if(j.status==='confirmed'&&jobEnd(j)<t)out.push({j,st:'confirmed',w:2,b:`Did this job go ahead? ${j.title}`,s:`Ended ${fmtD(jobEnd(j))} · mark it completed or not completed`});
-    else if(j.status==='heavy'&&j.start>=t&&daysBetween(t,j.start)<=14)out.push({j,st:'heavy',w:3,b:`Pencil to confirm: ${j.title}`,s:`${c} · starts ${fmtD(j.start)}`});
+    if(ps==='overdue')out.push({j,st:'heavy',icon:'inv',w:0,b:`Overdue: ${j.invoice.no}`,s:`${j.title} · due ${fmtD(j.invoice.due)}`,amt:totals(j).balance});
+    else if(j.status==='completed'&&!j.invoice&&totals(j).total>0)out.push({j,st:'completed',icon:'inv',w:2,b:`Ready to invoice`,s:`${j.title} · ${c}`,amt:totals(j).total});
+    else if(j.status==='confirmed'&&jobEnd(j)<t)out.push({j,st:'confirmed',icon:'check',w:3,b:`Did this job go ahead?`,s:`${j.title} · ended ${fmtD(jobEnd(j))}`});
+    else if(j.status==='heavy'&&j.start>=t&&daysBetween(t,j.start)<=14)out.push({j,st:'heavy',icon:'clock',w:4,b:`Pencil to confirm`,s:`${j.title} · ${fmtD(j.start)}`});
+    if(ACTIVE.includes(j.status)&&jobEnd(j)>=t){
+      const hit=S.jobs.find(o=>o.id!==j.id&&ACTIVE.includes(o.status)&&o.start<=jobEnd(j)&&jobEnd(o)>=j.start&&sameCrew(j,o));
+      if(hit&&j.id<hit.id)out.push({j,st:'blocked',icon:'clash',w:1,b:'Date conflict',s:`${j.title} and ${hit.title}`});
+    }
   });
-  return out.sort((a,b)=>a.w-b.w).slice(0,8);
+  return out.sort((a,b)=>a.w-b.w);
 }
+const stat=(label,val,color,act,v,bad)=>`<button class="stat ${bad?'bad':''}" data-act="${act}" data-v="${v}" style="--sc:${color}"><span class="cap">${label}</span><span class="v">${val}</span><i></i></button>`;
 function vHome(){
-  const t=today(),wk=addDays(t,7),m=t.slice(0,7);
-  const live=S.jobs.filter(j=>j.status!=='cancelled');
-  const next7=live.filter(j=>jobEnd(j)>=t&&j.start<=wk&&j.status!=='blocked');
-  const inv=S.jobs.filter(j=>j.invoice&&j.status!=='cancelled');
-  const outstanding=r2(inv.reduce((a,j)=>a+Math.max(0,totals(j).balance),0));
-  const od=inv.filter(j=>payState(j)==='overdue');
-  const odAmt=r2(od.reduce((a,j)=>a+totals(j).balance,0));
-  const recM=r2(S.jobs.flatMap(j=>j.payments||[]).filter(p=>(p.date||'').startsWith(m)).reduce((a,p)=>a+(+p.amount||0),0));
-  const upcoming=live.filter(j=>jobEnd(j)>=t).slice(0,6);
-  const att=attention();
+  const t=today(),live=S.jobs.filter(j=>j.status!=='cancelled');
+  const unpaid=r2(S.jobs.filter(j=>j.invoice&&j.status!=='cancelled').reduce((a,j)=>a+Math.max(0,totals(j).balance),0));
+  const openQ=S.jobs.filter(isOpenQuote).length;
+  const active=live.filter(j=>jobEnd(j)>=t&&['confirmed','heavy'].includes(j.status)).length;
+  const conf=r2(live.filter(j=>j.status==='confirmed'&&jobEnd(j)>=t).reduce((a,j)=>a+totals(j).total,0));
+  const att=attention(),shown=S.attnAll?att:att.slice(0,3);
+  const up=live.filter(j=>jobEnd(j)>=t&&j.status!=='blocked').slice(0,10);
   const name=(S.settings.ownerName||'').split(' ')[0];
-  return `<p class="greet">${name?`Hi ${esc(name)}. `:''}<span>${fmtD(t,{weekday:'long',day:'numeric',month:'long'})}</span></p>
+  return page(`Hello${name?', '+esc(name):''}`,fmtD(t,{weekday:'long',day:'numeric',month:'long',year:'numeric'}),
+    `<button class="avatar" data-act="tab" data-v="more" aria-label="Settings">${esc(initials(S.settings.ownerName||S.settings.businessName||'Me'))}</button>`,`
   <div class="stats">
-    <button class="stat" data-act="tab" data-v="cal"><span class="lbl">Next 7 days</span><span class="val">${next7.length}</span><span class="sub">${next7.length===1?'booking':'bookings'}</span></button>
-    <button class="stat" data-act="tab" data-v="money"><span class="lbl">Owed to you</span><span class="val">${money(outstanding)}</span><span class="sub">${inv.filter(j=>totals(j).balance>0).length} unpaid invoices</span></button>
-    <button class="stat ${odAmt>0?'bad':''}" data-act="tab" data-v="money"><span class="lbl">Overdue</span><span class="val">${money(odAmt)}</span><span class="sub">${od.length} ${od.length===1?'invoice':'invoices'}</span></button>
-    <button class="stat" data-act="tab" data-v="money"><span class="lbl">Paid this month</span><span class="val">${money(recM)}</span><span class="sub">${fmtD(t,{month:'long'})}</span></button>
+    ${stat('Open quotes',openQ,'var(--accent)','jobFilterGo','quotes')}
+    ${stat('Unpaid inv',moneyShort(unpaid),'var(--st-heavy)','tab','money')}
+    ${stat('Active jobs',active,'var(--st-confirmed)','jobFilterGo','upcoming')}
+    ${stat('Confirmed',moneyShort(conf),'#7CC7C0','tab','cal')}
   </div>
-  ${att.length?`<div class="sec-block"><h2 class="sec">Needs your attention</h2><div class="attn">${att.map(a=>`<button data-act="openJob" data-id="${a.j.id}" class="st-${a.st}"><span class="dot"></span><span class="t"><b>${esc(a.b)}</b><small>${esc(a.s)}</small></span></button>`).join('')}</div></div>`:''}
-  <div class="sec-block"><h2 class="sec">Coming up <button class="btn sm ghost" data-act="tab" data-v="jobs">All jobs</button></h2>
-  ${upcoming.length?`<div class="list">${upcoming.map(jobCard).join('')}</div>`:emptyJobs('No upcoming bookings')}</div>`;
+  ${att.length?`<div class="sec"><div class="sh"><h2>Needs attention</h2>${att.length>3?`<button class="link" data-act="attnAll">${S.attnAll?'Show less':`View all (${att.length})`}</button>`:''}</div>
+    <div class="alist">${shown.map(a=>`<button class="arow st-${a.st}" data-act="openJob" data-id="${a.j.id}"><span class="ibub">${ic(a.icon)}</span><span class="t"><b>${esc(a.b)}</b><small>${esc(a.s)}</small></span>${a.amt!=null?`<span class="amt">${money(a.amt)}</span>`:ic('chev')}</button>`).join('')}</div></div>`:''}
+  <div class="sec"><div class="sh"><h2>Upcoming bookings</h2>${up.length>1?`<span class="row"><button class="round" style="width:36px;height:36px;color:var(--ink-2)" data-act="scrollCar" data-n="-1" aria-label="Previous">${ic('chevL')}</button><button class="round" style="width:36px;height:36px;color:var(--ink-2)" data-act="scrollCar" data-n="1" aria-label="Next">${ic('chev')}</button></span>`:''}</div>
+  ${up.length?`<div class="carousel" id="car">${up.map(j=>{const c=client(j.clientId),onNow=j.start<=t&&jobEnd(j)>=t;
+    return `<button class="ucard st-${j.status}" data-act="openJob" data-id="${j.id}"><span class="row"><span class="st">${esc(ST[j.status].label)}</span>${onNow?'<span class="badge">Today</span>':j.start===addDays(t,1)?'<span class="badge">Tomorrow</span>':''}</span>
+      <span class="h">${esc(j.title||'Untitled job')}</span>
+      <span class="meta"><span>${ic('date')}${esc(fmtRange(j.start,jobEnd(j)))}</span><span>${ic('clock')}${esc(timeText(j))}</span>${j.venue?`<span>${ic('pin')}${esc(j.venue)}</span>`:''}</span>
+      ${c?`<span class="hint">${esc(c.name)}</span>`:''}
+      <span class="foot"><span>Total amount</span><span class="num">${money(totals(j).total)}</span></span></button>`}).join('')}</div>`:emptyJobs('No upcoming bookings')}</div>
+  <button class="fab" data-act="newJob" aria-label="New booking">${ic('plus')}</button>`);
 }
+const isOpenQuote=j=>j.quote&&!j.quote.acceptedAt&&!j.invoice&&!['cancelled','notdone'].includes(j.status)&&!(j.quote.validUntil&&j.quote.validUntil<today());
 
-const FILTERS=[['upcoming','Upcoming'],['all','All'],...STATUSES.map(s=>[s.k,s.label]),['unpaid','Unpaid invoices']];
+const FILTERS=[['upcoming','Upcoming'],['all','All jobs'],...STATUSES.map(s=>[s.k,s.label]),['quotes','Open quotes'],['unpaid','Unpaid']];
 function vJobs(){
-  const t=today(),q=S.search.trim().toLowerCase();
+  const t=today(),q=S.search.trim().toLowerCase(),f=S.jobFilter;
   let js=S.jobs.slice();
-  const f=S.jobFilter;
   if(f==='upcoming')js=js.filter(j=>jobEnd(j)>=t&&j.status!=='cancelled');
   else if(f==='unpaid')js=js.filter(j=>j.invoice&&totals(j).balance>0);
+  else if(f==='quotes')js=js.filter(isOpenQuote);
   else if(f!=='all')js=js.filter(j=>j.status===f);
   if(q)js=js.filter(j=>[j.title,j.engineer,j.role,j.venue,j.address,j.po,j.notes,client(j.clientId)?.name,j.invoice?.no,j.quote?.no].join(' ').toLowerCase().includes(q));
-  if(f!=='upcoming')js.reverse();
-  const groups=[];js.forEach(j=>{const k=(j.start||'').slice(0,7);let g=groups[groups.length-1];if(!g||g.k!==k)groups.push(g={k,js:[]});g.js.push(j)});
-  return `<div class="toolbar"><input class="search" id="jobSearch" type="search" placeholder="Search jobs, clients, engineers, venues" value="${esc(S.search)}" aria-label="Search jobs"></div>
-  <div class="chips" role="group" aria-label="Filter jobs">${FILTERS.map(([k,l])=>`<button class="chip" data-act="jobFilter" data-v="${k}" aria-pressed="${f===k}">${l} <span class="num" style="opacity:.6">${countFilter(k)}</span></button>`).join('')}</div>
-  ${groups.length?groups.map(g=>`<div class="sec-block"><h3 class="month-h">${g.k?fmtD(g.k+'-01',{month:'long',year:'numeric'}):'No date'}<span>${money(g.js.filter(j=>j.status!=='cancelled').reduce((a,j)=>a+totals(j).total,0))}</span></h3><div class="list">${g.js.map(jobCard).join('')}</div></div>`).join(''):(S.jobs.length?`<div class="empty"><b>No jobs match</b><span>Try another filter or search.</span></div>`:emptyJobs('No bookings yet'))}`;
+  if(f!=='upcoming'&&f!=='quotes')js.reverse();
+  const groups=[];js.forEach(j=>{const k=j.start||'';let g=groups[groups.length-1];if(!g||g.k!==k)groups.push(g={k,js:[]});g.js.push(j)});
+  return page('Jobs','','',`<label class="search">${ic('search')}<span class="sr">Search jobs</span><input id="jobSearch" type="search" placeholder="Search client, event or engineer…" value="${esc(S.search)}"></label>
+  <div class="chips" role="group" aria-label="Filter jobs">${FILTERS.map(([k,l])=>`<button class="chip" data-act="jobFilter" data-v="${k}" aria-pressed="${f===k}">${l}<span class="n">${countFilter(k)}</span></button>`).join('')}</div>
+  ${groups.length?groups.map(g=>`<div class="sec"><div class="dayh ${g.k===t?'today':''}">${g.k?esc(dayLabel(g.k)):'No date'}</div><div class="list">${g.js.map(jobCard).join('')}</div></div>`).join('')
+    :(S.jobs.length?`<div class="empty"><b>No jobs match</b><span>Try another filter or search.</span></div>`:emptyJobs('No bookings yet'))}
+  <button class="fab" data-act="newJob" aria-label="New booking">${ic('plus')}</button>`);
 }
 function countFilter(k){const t=today();
   if(k==='upcoming')return S.jobs.filter(j=>jobEnd(j)>=t&&j.status!=='cancelled').length;
   if(k==='all')return S.jobs.length;
   if(k==='unpaid')return S.jobs.filter(j=>j.invoice&&totals(j).balance>0).length;
+  if(k==='quotes')return S.jobs.filter(isOpenQuote).length;
   return S.jobs.filter(j=>j.status===k).length}
 
 function jobsOnDay(d){return S.jobs.filter(j=>j.start<=d&&jobEnd(j)>=d)}
@@ -451,25 +601,38 @@ function vCal(){
   for(let i=0;i<42;i++){const d=new Date(start);d.setDate(start.getDate()+i);const s=iso(d);
     if(i===35&&d.getMonth()!==mo)break;
     const js=jobsOnDay(s);
-    cells+=`<button class="cal-day ${d.getMonth()!==mo?'other':''} ${s===t?'today':''} ${s===S.calSel?'sel':''}" data-act="calDay" data-d="${s}" aria-label="${fmtLong(s)}, ${js.length} bookings"><span class="dn">${d.getDate()}</span>
-      ${js.slice(0,3).map(j=>`<span class="cal-bar st-${j.status}">${esc(j.title)}</span>`).join('')}${js.length>3?`<span class="cal-more">+${js.length-3}</span>`:''}</button>`}
+    cells+=`<button class="cal-day ${d.getMonth()!==mo?'other':''} ${s===t?'today':''} ${s===S.calSel?'sel':''}" data-act="calDay" data-d="${s}" aria-label="${fmtLong(s)}, ${js.length} bookings"><span class="dn">${d.getDate()}</span>${js.slice(0,3).map(j=>`<span class="cal-line st-${j.status}"></span>`).join('')}${js.length>3?`<span class="cal-more">+${js.length-3}</span>`:''}</button>`}
   const sel=jobsOnDay(S.calSel);
-  return `<div class="cal"><div class="cal-nav"><button class="btn sm" data-act="calMove" data-n="-1" aria-label="Previous month">‹</button>
-    <h3>${first.toLocaleDateString('en-ZA',{month:'long',year:'numeric'})}</h3>
-    <div class="row"><button class="btn sm" data-act="calToday">Today</button><button class="btn sm" data-act="calMove" data-n="1" aria-label="Next month">›</button></div></div>
-    <div class="cal-grid">${['Mon','Tue','Wed','Thu','Fri','Sat','Sun'].map(d=>`<div class="cal-dow">${d}</div>`).join('')}${cells}</div></div>
-  <div class="legend">${STATUSES.map(s=>stPill(s.k)).join('')}</div>
-  <div class="sec-block"><h2 class="sec">${fmtD(S.calSel,{weekday:'long',day:'numeric',month:'long'})}<button class="btn sm" data-act="newJob" data-date="${S.calSel}">+ Booking on this day</button></h2>
-  ${sel.length?`<div class="list">${sel.map(jobCard).join('')}</div>`:`<div class="empty"><span>Nothing booked. This day is free.</span></div>`}</div>`;
+  return page('Calendar','',`<button class="round" data-act="newJob" data-date="${S.calSel}" aria-label="New booking on the selected day">${ic('calplus')}</button>`,`
+  <div class="sec"><div class="mnav"><h2>${first.toLocaleDateString('en-ZA',{month:'long',year:'numeric'})}</h2><span class="row" style="gap:2px"><button class="link" data-act="calToday">Today</button><button class="icon-btn" data-act="calMove" data-n="-1" aria-label="Previous month">${ic('chevL')}</button><button class="icon-btn" data-act="calMove" data-n="1" aria-label="Next month">${ic('chev')}</button></span></div>
+  <div class="cal"><div class="cal-grid">${['Mon','Tue','Wed','Thu','Fri','Sat','Sun'].map(d=>`<div class="cal-dow">${d}</div>`).join('')}${cells}</div></div>
+  <div class="legend">${STATUSES.map(s=>`<span class="st-${s.k}">${s.label}</span>`).join('')}</div></div>
+  <div class="sec"><span class="cap dark">${fmtD(S.calSel,{weekday:'long',day:'numeric',month:'long'})}</span>
+  ${sel.length?`<div class="list">${sel.map(j=>`<button class="drow st-${j.status}" data-act="openJob" data-id="${j.id}"><span class="bar"></span><span class="t"><b>${esc(j.title)}</b><small>${esc([timeText(j),j.venue,ST[j.status].label].filter(Boolean).join(' • '))}</small></span>${ic('chev')}</button>`).join('')}</div>`
+    :`<div class="empty"><span>Nothing booked. This day is free.</span><button class="btn sm" data-act="newJob" data-date="${S.calSel}">${ic('plus')}Add booking</button></div>`}</div>`);
 }
 
 function clientStats(c){const js=S.jobs.filter(j=>j.clientId===c.id);return{n:js.length,owed:r2(js.filter(j=>j.invoice).reduce((a,j)=>a+Math.max(0,totals(j).balance),0)),billed:r2(js.filter(j=>j.status!=='cancelled').reduce((a,j)=>a+totals(j).total,0))}}
+const waNum=p=>{let d=String(p||'').replace(/\D/g,'');if(d.startsWith('0'))d='27'+d.slice(1);return d};
+function contactActs(c){
+  const wa=waNum(c.phone),tel=String(c.phone||'').replace(/[^\d+]/g,'');
+  return `<div class="cact">${wa?`<a href="https://wa.me/${wa}" target="_blank" rel="noopener" aria-label="WhatsApp ${esc(c.name)}">${ic('wa')}</a>`:`<span aria-hidden="true">${ic('wa')}</span>`}
+    ${tel?`<a href="tel:${esc(tel)}" target="_blank" rel="noopener" aria-label="Call ${esc(c.name)}">${ic('phone')}</a>`:`<span aria-hidden="true">${ic('phone')}</span>`}
+    ${c.email?`<a href="mailto:${esc(c.email)}" target="_blank" rel="noopener" aria-label="Email ${esc(c.name)}">${ic('mail')}</a>`:`<span aria-hidden="true">${ic('mail')}</span>`}</div>`;
+}
 function vClients(){
   const q=S.clientSearch.trim().toLowerCase();
   const cs=S.clients.filter(c=>!q||[c.name,c.contact,c.email,c.phone].join(' ').toLowerCase().includes(q));
-  return `<div class="toolbar"><input class="search" id="clientSearch" type="search" placeholder="Search clients" value="${esc(S.clientSearch)}" aria-label="Search clients"><button class="btn primary" data-act="newClient">+ Client</button></div>
-  ${cs.length?`<div class="list">${cs.map(c=>{const st=clientStats(c);return `<button class="client-row" data-act="openClient" data-id="${c.id}"><span class="row" style="flex-wrap:nowrap;min-width:0"><span class="av">${esc(initials(c.name))}</span><span class="t"><b>${esc(c.name)}</b><small>${esc([c.contact,c.email].filter(Boolean).join(' · ')||'No contact details')}</small></span></span><span class="r"><span class="num">${st.n}</span> jobs${st.owed>0?`<br><span class="num" style="color:var(--warn)">${money(st.owed)} owed</span>`:''}</span></button>`}).join('')}</div>`
-  :`<div class="empty"><b>${S.clients.length?'No clients match':'No clients yet'}</b><span>Save each client once with their billing details. Their email fills in when you send an invoice.</span><button class="btn primary" data-act="newClient">Add a client</button></div>`}`;
+  const L=c=>{const ch=(c.name||'#').trim()[0].toUpperCase();return /[A-Z]/.test(ch)?ch:'#'};
+  const groups=[];cs.forEach(c=>{const k=L(c);let g=groups.find(x=>x.k===k);if(!g)groups.push(g={k,cs:[]});g.cs.push(c)});
+  groups.sort((a,b)=>a.k.localeCompare(b.k));
+  const have=new Set(groups.map(g=>g.k));
+  const card=c=>{const st=clientStats(c);return `<div class="ccard"><button class="who" data-act="openClient" data-id="${c.id}"><span class="cav">${esc(initials(c.name))}</span><span class="t"><b>${esc(c.name)}</b><small>${esc([c.contact,`${st.n} ${st.n===1?'job':'jobs'}`].filter(Boolean).join(' · '))}</small></span>${st.owed>0?`<span class="owed">${money(st.owed)}<br>owed</span>`:''}</button>${contactActs(c)}</div>`};
+  return page('Clients','',`<button class="round solid" data-act="newClient" aria-label="New client">${ic('userplus')}</button>`,`
+  <label class="search">${ic('search')}<span class="sr">Search clients</span><input id="clientSearch" type="search" placeholder="Search by name or company…" value="${esc(S.clientSearch)}"></label>
+  ${cs.length?`<div class="sec clients-list">${groups.map(g=>`<span class="letter" id="L-${g.k}">${g.k}</span><div class="list">${g.cs.map(card).join('')}</div>`).join('')}</div>
+    ${!q&&S.clients.length>4?`<nav class="az" aria-label="Jump to letter">${'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('').map(l=>`<button data-act="az" data-v="${l}" ${have.has(l)?'':'disabled'}>${l}</button>`).join('')}</nav>`:''}`
+  :`<div class="empty"><b>${S.clients.length?'No clients match':'No clients yet'}</b><span>Save each client once with their billing details. Their email fills in when you send a quote or invoice.</span><button class="btn primary" data-act="newClient">Add a client</button></div>`}`);
 }
 
 /* ---------- money ---------- */
@@ -483,41 +646,48 @@ function finSeries(){
   });
   return{ms,inv:ms.map(m=>r2(inv[m])),rec:ms.map(m=>r2(rec[m])),firm:ms.map(m=>w.firm[m]),pen:ms.map(m=>w.pen[m]),can:ms.map(m=>w.can[m])};
 }
+function dueText(j){
+  const n=daysBetween(today(),j.invoice.due);
+  if(n<0)return `<span class="due" style="color:var(--bad)">Overdue ${-n}d</span>`;
+  return `<span class="due" style="color:${n<=3?'var(--warn)':'var(--ink-3)'}">${n===0?'Due today':`Due in ${n}d`}</span>`;
+}
 function vMoney(){
   const t=today(),m=t.slice(0,7),f=finSeries();
   const inv=S.jobs.filter(j=>j.invoice&&j.status!=='cancelled');
   const owed=inv.filter(j=>totals(j).balance>0).sort((a,b)=>(a.invoice.due||'').localeCompare(b.invoice.due||''));
+  const owedAmt=r2(owed.reduce((a,j)=>a+totals(j).balance,0));
   const pays=S.jobs.flatMap(j=>(j.payments||[]).map(p=>({...p,j}))).sort((a,b)=>(b.date||'').localeCompare(a.date||''));
-  const yr12=f.ms.filter(k=>k<=m);const sumIn=r2(f.inv.slice(0,10).reduce((a,b)=>a+b,0)),sumRec=r2(f.rec.slice(0,10).reduce((a,b)=>a+b,0));
+  const first=f.ms[0];const sumIn=r2(f.inv.slice(0,10).reduce((a,b)=>a+b,0)),sumRec=r2(f.rec.slice(0,10).reduce((a,b)=>a+b,0));
   const toInvoice=S.jobs.filter(j=>j.status==='completed'&&!j.invoice&&totals(j).total>0);
-  const byClient={};inv.forEach(j=>{if((j.invoice.issued||'')>=yr12[0]){const n=client(j.clientId)?.name||'No client';byClient[n]=(byClient[n]||0)+totals(j).total}});
+  const byClient={};inv.forEach(j=>{if((j.invoice.issued||'')>=first){const n=client(j.clientId)?.name||'No client';byClient[n]=(byClient[n]||0)+totals(j).total}});
   const top=Object.entries(byClient).sort((a,b)=>b[1]-a[1]).slice(0,5),topMax=top[0]?.[1]||1;
   const pipeline=r2(S.jobs.filter(j=>['confirmed','heavy'].includes(j.status)&&!j.invoice&&jobEnd(j)>=t).reduce((a,j)=>a+totals(j).total,0));
-  return `<div class="stats">
-    <div class="stat"><span class="lbl">Invoiced, last 10 months</span><span class="val">${money(sumIn)}</span></div>
-    <div class="stat"><span class="lbl">Received, last 10 months</span><span class="val">${money(sumRec)}</span></div>
-    <div class="stat"><span class="lbl">Owed to you</span><span class="val">${money(owed.reduce((a,j)=>a+totals(j).balance,0))}</span><span class="sub">${owed.length} invoices</span></div>
-    <div class="stat"><span class="lbl">Booked, not yet invoiced</span><span class="val">${money(pipeline)}</span><span class="sub">Confirmed and pencilled</span></div>
-  </div>
-  <div class="card"><h2 class="sec">Money by month <span class="hint" style="text-transform:none;letter-spacing:0">Invoiced by issue date · received by payment date</span></h2><div class="chart-box"><canvas id="chFin" aria-label="Invoiced and received by month"></canvas></div></div>
-  <div class="card"><h2 class="sec">Work coming in <span class="hint" style="text-transform:none;letter-spacing:0">Bookings by start month, incl. next 2 months</span></h2><div class="chart-box"><canvas id="chWork" aria-label="Bookings per month by status"></canvas></div></div>
-  ${toInvoice.length?`<div class="sec-block"><h2 class="sec">Ready to invoice</h2><div class="list">${toInvoice.map(jobCard).join('')}</div></div>`:''}
-  <div class="sec-block"><h2 class="sec">Unpaid invoices</h2>${owed.length?`<div class="card tscroll"><table class="t"><thead><tr><th>Invoice</th><th>Client</th><th>Due</th><th class="r">Balance</th></tr></thead><tbody>${owed.map(j=>{const ps=payState(j);return `<tr data-act="openJob" data-id="${j.id}" style="cursor:pointer"><td><b>${esc(j.invoice.no)}</b><br>${payPill(ps)}</td><td>${esc(client(j.clientId)?.name||'—')}</td><td style="${ps==='overdue'?'color:var(--bad);font-weight:600':''}">${fmtD(j.invoice.due,{day:'numeric',month:'short'})}</td><td class="r">${money(totals(j).balance)}</td></tr>`}).join('')}</tbody></table></div>`:`<div class="empty"><span>Every invoice is paid.</span></div>`}</div>
-  ${top.length?`<div class="card"><h2 class="sec">Top clients, last 10 months</h2><div class="bar-list">${top.map(([n,v])=>`<div class="bar-row"><span>${esc(n)}</span><span class="num">${money(v)}</span><span class="track"><i style="width:${Math.max(3,v/topMax*100)}%"></i></span></div>`).join('')}</div></div>`:''}
-  <div class="sec-block"><h2 class="sec">Recent payments</h2>${pays.length?`<div class="card">${pays.slice(0,12).map(p=>`<div class="pay"><span><b>${money(p.amount)}</b> · ${esc(client(p.j.clientId)?.name||p.j.title)}<br><small style="color:var(--ink-2)">${fmtD(p.date)} · ${esc(p.method||'')} ${p.j.invoice?'· '+esc(p.j.invoice.no):''}</small></span><button class="btn sm" data-act="openJob" data-id="${p.j.id}">Job</button></div>`).join('')}</div>`:`<div class="empty"><span>No payments recorded yet. Open a job and tap “Record payment”.</span></div>`}</div>
-  <div class="card"><h2 class="sec">Export</h2><span class="hint">For your accountant, SARS VAT201 returns and provisional tax. Opens a save prompt.</span><div class="row"><button class="btn" data-act="exportJobs">Jobs & invoices (CSV)</button><button class="btn" data-act="exportPays">Payments (CSV)</button></div></div>`;
+  const shownOwed=S.moneyAll?owed:owed.slice(0,3);
+  return page('Money','Financial performance overview','',`
+  <div class="card hero"><span class="cap">Invoiced · last 10 months</span><span class="big">${money(sumIn)}</span>
+    <div class="split"><div><span class="cap">Received</span><span class="num">${moneyShort(sumRec)}</span></div><div><span class="cap">Booked</span><span class="num">${moneyShort(pipeline)}</span></div><div><span class="cap">Unpaid</span><span class="num" style="color:var(--warn)">${moneyShort(owedAmt)}</span></div></div></div>
+  <div class="card"><h3>Monthly income</h3><div class="chart-box"><canvas id="chFin" aria-label="Invoiced and received by month"></canvas></div></div>
+  <div class="sec"><div class="sh"><h2>Unpaid invoices</h2>${owed.length>3?`<button class="link" data-act="moneyAll">${S.moneyAll?'Show less':'View all'}</button>`:''}</div>
+  ${owed.length?shownOwed.map(j=>{const ps=payState(j);return `<div class="icard"><div class="top"><span><b>${esc(j.invoice.no)}</b><small>${esc(j.title)} · ${esc(client(j.clientId)?.name||'No client')}</small></span><span class="r"><span class="num">${money(totals(j).balance)}</span>${dueText(j)}</span></div>
+    <div class="acts">${ps==='overdue'?`<button class="btn primary" data-act="emailInv" data-id="${j.id}" ${S.mcp?'':'disabled'}>Send reminder</button>`:`<button class="btn" data-act="sharePdf" data-k="invoice" data-id="${j.id}">View PDF</button>`}<button class="round soft" data-act="openJob" data-id="${j.id}" aria-label="Open job">${ic('dots')}</button></div></div>`}).join('')
+    :`<div class="empty"><span>Every invoice is paid.</span></div>`}</div>
+  ${toInvoice.length?`<div class="sec"><div class="sh"><h2>Ready to invoice</h2></div><div class="list">${toInvoice.map(jobCard).join('')}</div></div>`:''}
+  <div class="card"><h3>Bookings per month</h3><div class="chart-box"><canvas id="chWork" aria-label="Bookings per month by status"></canvas></div></div>
+  ${top.length?`<div class="card"><h3>Top clients</h3><div class="bar-list">${top.map(([n,v])=>`<div class="bar-row"><span>${esc(n)}</span><span class="num">${money(v)}</span><span class="track"><i style="width:${Math.max(3,v/topMax*100)}%"></i></span></div>`).join('')}</div></div>`:''}
+  <div class="card"><h3>Recent payments</h3>${pays.length?`<div>${pays.slice(0,10).map(p=>`<div class="pay"><span><b class="num">${money(p.amount)}</b> · ${esc(client(p.j.clientId)?.name||p.j.title)}<br><small>${fmtD(p.date)} · ${esc(p.method||'')}${p.j.invoice?' · '+esc(p.j.invoice.no):''}</small></span><button class="btn sm" data-act="openJob" data-id="${p.j.id}">Job</button></div>`).join('')}</div>`:`<span class="hint">No payments recorded yet. Open a job and tap “Record payment”.</span>`}</div>
+  <div class="card"><h3>Export</h3><span class="hint">For your accountant, SARS VAT201 returns and provisional tax.</span><div class="row"><button class="btn sm" data-act="exportJobs">Jobs & invoices (CSV)</button><button class="btn sm" data-act="exportPays">Payments (CSV)</button></div></div>`);
 }
 function css(v){return getComputedStyle(document.documentElement).getPropertyValue(v).trim()}
 function drawCharts(){
   if(!window.Chart)return;
-  const f=finSeries(),labels=f.ms.map(k=>pd(k+'-01').toLocaleDateString('en-ZA',{month:'short',year:'2-digit'}));
-  const ink2=css('--ink-2'),line=css('--line'),font={family:'IBM Plex Sans, system-ui, sans-serif',size:11};
+  const f=finSeries(),labels=f.ms.map(k=>pd(k+'-01').toLocaleDateString('en-ZA',{month:'short'}));
+  const ink3=css('--ink-3'),line=css('--line'),font={family:'Archivo, system-ui, sans-serif',size:11};
   const base={responsive:true,maintainAspectRatio:false,interaction:{mode:'index',intersect:false},
-    plugins:{legend:{position:'bottom',labels:{color:ink2,font,boxWidth:10,boxHeight:10}},tooltip:{}},
-    scales:{x:{grid:{display:false},ticks:{color:ink2,font},border:{color:line}},y:{beginAtZero:true,grid:{color:line},ticks:{color:ink2,font},border:{display:false}}}};
+    plugins:{legend:{position:'bottom',labels:{color:ink3,font,boxWidth:10,boxHeight:10,usePointStyle:true,pointStyle:'rectRounded'}},tooltip:{}},
+    scales:{x:{grid:{display:false},ticks:{color:ink3,font},border:{color:css('--ink-2')}},y:{beginAtZero:true,grid:{color:line},ticks:{color:ink3,font,maxTicksLimit:6},border:{display:false}}}};
   const a=$('#chFin');if(a)S.charts.push(new Chart(a,{type:'bar',data:{labels,datasets:[
-    {label:'Invoiced',data:f.inv,backgroundColor:css('--accent'),borderRadius:4,maxBarThickness:22},
-    {label:'Received',data:f.rec,backgroundColor:'#FFB347',borderRadius:4,maxBarThickness:22}]},
+    {label:'Invoiced',data:f.inv,backgroundColor:css('--accent'),borderRadius:3,maxBarThickness:26},
+    {label:'Received',data:f.rec,backgroundColor:'#9ED9D3',borderRadius:3,maxBarThickness:26}]},
     options:{...base,plugins:{...base.plugins,tooltip:{callbacks:{label:c=>`${c.dataset.label}: ${money(c.parsed.y)}`}}},scales:{...base.scales,y:{...base.scales.y,ticks:{...base.scales.y.ticks,callback:v=>moneyShort(v)}}}}}));
   const b=$('#chWork');if(b)S.charts.push(new Chart(b,{type:'bar',data:{labels,datasets:[
     {label:'Confirmed / done',data:f.firm,backgroundColor:css('--st-confirmed'),borderRadius:3,maxBarThickness:26,stack:'s'},
@@ -527,105 +697,111 @@ function drawCharts(){
 }
 
 /* ---------- settings ---------- */
+const GROUPS={
+  profile:{t:'Your business',f:[['businessName','Business name'],['ownerName','Your name'],['email','Email','email'],['phone','Phone','tel'],['regNo','Company reg. no. (CIPC)'],['address','Business address','area']]},
+  docs:{t:'Quotes & invoices',f:[['invoicePrefix','Invoice prefix'],['nextInvoiceNo','Next invoice no.','number','min="1"'],['termsDays','Payment terms (days)','number','min="0"'],['quotePrefix','Quote prefix'],['nextQuoteNo','Next quote no.','number','min="1"'],['quoteValidDays','Quotes valid for (days)','number','min="1"'],['invoiceNotes','Note printed on invoices','area']]},
+  bank:{t:'Payment details',f:[['accountName','Account name'],['bankName','Bank'],['bsb','Branch code','text','inputmode="numeric"'],['accountNo','Account number','text','inputmode="numeric"'],['accountType','Account type','text','placeholder="Cheque / Current / Savings"'],['swift','SWIFT code (overseas clients)']]},
+  rates:{t:'Services & rates',f:[['defaultRate','Default day rate','number','step="0.01" min="0"'],['travelRate','Travel rate per km','number','step="0.01" min="0"'],['crew','Engineers and techs you book (one per line)','area']]},
+  tax:{t:'Tax settings',f:[['gstRegistered','Registered for VAT','check','Adds VAT and titles invoices “Tax invoice”, as SARS requires'],['abn','VAT number','text','inputmode="numeric"'],['gstRate','VAT %','number','step="0.1" min="0"'],['currency','Currency','currency']]},
+  cal:{t:'Calendar & sync',f:[['autoSync','Add new bookings to Google Calendar','check','You can turn this off per booking'],['timeZone','Calendar time zone']]},
+};
 function vMore(){
-  const s=S.settings,fld=(k,l,t='text',x='')=>`<label class="field"><span>${l}</span><input name="${k}" id="set-${k}" type="${t}" value="${esc(s[k])}" ${x}></label>`;
-  return `<form class="card" data-form="settings" id="settingsForm">
-    <h2 class="sec">Your business</h2>
-    <div class="grid2">${fld('businessName','Business name')}${fld('ownerName','Your name')}</div>
-    <div class="grid2">${fld('email','Email','email')}${fld('phone','Phone','tel')}</div>
-    <div class="grid2">${fld('abn','VAT number','text','inputmode="numeric"')}${fld('regNo','Company reg. no. (CIPC)')}</div>
-    <label class="field"><span>Business address</span><textarea name="address" id="set-address" rows="2">${esc(s.address)}</textarea></label>
-    <h2 class="sec">Invoices</h2>
-    <label class="switch"><span>Registered for VAT<br><small class="hint">Adds VAT and titles invoices “Tax invoice”, as SARS requires</small></span><input type="checkbox" name="gstRegistered" id="set-gst" ${s.gstRegistered?'checked':''}></label>
-    <div class="grid3">${fld('gstRate','VAT %','number','step="0.1" min="0"')}${fld('termsDays','Payment terms (days)','number','min="0"')}<label class="field"><span>Currency</span><select name="currency" id="set-currency">${curOptions(s.currency||'AUD')}</select></label></div>
-    <div class="grid3">${fld('invoicePrefix','Invoice prefix')}${fld('nextInvoiceNo','Next invoice no.','number','min="1"')}${fld('defaultRate','Default day rate','number','step="0.01" min="0"')}</div>
-    <div class="grid3">${fld('quotePrefix','Quote prefix')}${fld('nextQuoteNo','Next quote no.','number','min="1"')}${fld('quoteValidDays','Quotes valid for (days)','number','min="1"')}</div>
-    <div class="grid2">${fld('travelRate','Travel rate per km','number','step="0.01" min="0"')}${fld('timeZone','Calendar time zone')}</div>
-    <label class="field"><span>Note printed on invoices</span><textarea name="invoiceNotes" id="set-notes" rows="2">${esc(s.invoiceNotes)}</textarea></label>
-    <h2 class="sec">How clients pay you</h2>
-    <div class="grid2">${fld('accountName','Account name')}${fld('bankName','Bank')}</div>
-    <div class="grid2">${fld('bsb','Branch code','text','inputmode="numeric"')}${fld('accountNo','Account number','text','inputmode="numeric"')}</div>
-    <div class="grid2">${fld('accountType','Account type','text','placeholder="Cheque / Current / Savings"')}${fld('swift','SWIFT code (overseas clients)')}</div>
-    <h2 class="sec">Bookings</h2>
-    <label class="field"><span>Engineers and techs you book (one per line)</span><textarea name="crew" id="set-crew" rows="3" placeholder="Sam Lee&#10;Alex Chen">${esc(s.crew)}</textarea></label>
-    <label class="switch"><span>Add new bookings to Google Calendar<br><small class="hint">You can turn this off per booking</small></span><input type="checkbox" name="autoSync" id="set-sync" ${s.autoSync?'checked':''}></label>
-    <div class="row end"><button class="btn primary" type="submit">Save settings</button></div>
-  </form>
-  <div class="card"><h2 class="sec">Connections</h2>
-    <div class="kv"><dt>Saving</dt><dd>${S.mode==='live'?'Saved to your Claude account, private to you, on every device':'This device only'}</dd>
+  const s=S.settings,row=(k,icon,label,v='')=>`<button class="srow" data-act="setGroup" data-v="${k}"><span class="ibub">${ic(icon)}</span><span class="t">${label}</span>${v?`<span class="v">${esc(v)}</span>`:''}${ic('chev')}</button>`;
+  return page('Settings','','',`
+  <div class="card"><div class="profile"><span class="avatar lg">${esc(initials(s.ownerName||s.businessName||'Me'))}</span><span><b>${esc(s.ownerName||'Your name')}</b><small>${esc(s.businessName||'Add your business details')}</small><button class="link" data-act="setGroup" data-v="profile">Edit profile</button></span></div></div>
+  <div class="sec"><span class="cap">App settings</span><div class="slist">
+    ${row('docs','quote','Quotes & invoices',`${s.invoicePrefix||''}${s.nextInvoiceNo||''}`)}
+    ${row('cal','sync','Calendar & sync',s.autoSync?'On':'Off')}
+    ${row('privacy','shield','Data & privacy')}</div></div>
+  <div class="sec"><span class="cap">Business</span><div class="slist">
+    ${row('rates','brief','Services & rates',s.defaultRate?moneyShort(s.defaultRate)+'/day':'')}
+    ${row('bank','bank','Payment details',s.bankName||'')}
+    ${row('tax','tax','Tax settings',s.gstRegistered?`VAT ${s.gstRate}%`:'No VAT')}</div></div>
+  <p class="ver">My Booking 360 v2.0</p>`);
+}
+function openSettings(k){
+  const s=S.settings;
+  if(k==='privacy'){openSheet('settings',head('Data & privacy')+`<div class="sheet-body"><div class="card"><dl class="kv">
+    <dt>Saving</dt><dd>${S.mode==='live'?'Saved to your Claude account, private to you, on every device':'This device only'}</dd>
     <dt>Calendar</dt><dd>${S.mcp?'Google Calendar. The first sync asks your permission.':'Not available in this view'}</dd>
-    <dt>Email</dt><dd>${S.mcp?'Gmail. Invoices send from your own address.':'Not available in this view'}</dd></div>
-    <span class="hint">On iPhone, add your Google account in Settings → Calendar → Accounts and these bookings show in the Calendar app too.</span>
-  </div>`;
+    <dt>Email</dt><dd>${S.mcp?'Gmail. Quotes and invoices send from your own address.':'Not available in this view'}</dd></dl>
+    <span class="hint">On iPhone, add your Google account in Settings → Calendar → Accounts and your bookings show in the Calendar app too.</span></div></div>`);return}
+  const g=GROUPS[k];if(!g)return;
+  const fld=([n,l,t='text',x=''])=>t==='area'?`<label class="field"><span>${l}</span><textarea name="${n}" id="set-${n}" rows="3">${esc(s[n])}</textarea></label>`
+    :t==='check'?`<label class="switch"><span>${l}<br><small class="hint">${x}</small></span><input type="checkbox" name="${n}" id="set-${n}" ${s[n]?'checked':''}></label>`
+    :t==='currency'?`<label class="field"><span>${l}</span><select name="${n}" id="set-${n}">${curOptions(s.currency||'ZAR')}</select></label>`
+    :`<label class="field"><span>${l}</span><input name="${n}" id="set-${n}" type="${t}" value="${esc(s[n])}" ${x}></label>`;
+  openSheet('settings',head(g.t,`<button class="tbtn r" type="submit" form="settingsForm">Save</button>`,`<button class="tbtn" data-act="closeSheet">Cancel</button>`)+`<div class="sheet-body"><form class="form" id="settingsForm" data-form="settings">${g.f.map(fld).join('')}<button class="btn primary" type="submit">Save</button></form></div>`);
 }
 
 /* ---------- sheets ---------- */
 function openSheet(kind,html){const c=$('#sheetCard');c.dataset.kind=kind;c.innerHTML=html;$('#sheet').hidden=false;document.body.style.overflow='hidden'}
 function closeSheet(){$('#sheet').hidden=true;S.openJobId=null;S.draft=null;document.body.style.overflow=''}
-const head=(title,right='')=>`<div class="sheet-head"><button class="btn ghost" data-act="closeSheet">Close</button><h2>${esc(title)}</h2>${right||'<span style="width:64px"></span>'}</div>`;
-
+const head=(title,right='',left=`<button class="tbtn" data-act="closeSheet">Close</button>`)=>`<div class="sheet-head">${left}<h2>${esc(title)}</h2>${right||'<span style="min-width:64px"></span>'}</div>`;
+const unitTxt=(q,u)=>u==='flat'?'':(+q===1?u:u==='half day'?'half days':u==='km'?'km':u+'s');
 function openJob(id,refresh){
   const j=S.jobs.find(x=>x.id===id);if(!j){if(refresh)closeSheet();return}
   S.openJobId=id;
   const sb=$('#sheetCard .sheet-body'),scroll=refresh&&sb?sb.scrollTop:0;
-  const c=client(j.clientId),t=totals(j),ps=payState(j),s=S.settings;
-  const times=[j.callTime&&`Call ${j.callTime}`,j.finishTime&&`finish ${j.finishTime}`].filter(Boolean).join(', ');
-  const kv=[['Client',c?`${esc(c.name)}${c.email?`<br><span class="num" style="font-size:13px">${esc(c.email)}</span><button class="copy" data-act="copy" data-t="${esc(c.email)}">Copy</button>`:''}${c.phone?`<br><span class="num" style="font-size:13px">${esc(c.phone)}</span><button class="copy" data-act="copy" data-t="${esc(c.phone)}">Copy</button>`:''}`:'—'],
+  const c=client(j.clientId),t=totals(j),ps=payState(j);
+  const kv=[['Client',c?`${esc(c.name)}${c.email?`<br><span style="font-size:13px">${esc(c.email)}</span><button class="copy" data-act="copy" data-t="${esc(c.email)}">Copy</button>`:''}${c.phone?`<br><span style="font-size:13px">${esc(c.phone)}</span><button class="copy" data-act="copy" data-t="${esc(c.phone)}">Copy</button>`:''}`:'—'],
     ['Engineer / tech',esc([j.engineer,j.role].filter(Boolean).join(' · ')||'—')],
-    ['Times',esc(times||'All day')],
     ['Venue / site',esc([j.venue,j.address].filter(Boolean).join(', ')||'—')],
     ['On-site contact',esc([j.siteContact,j.sitePhone].filter(Boolean).join(' · ')||'—')],
     ['PO / ref',esc(j.po||'—')]];
   const calLine=j.calEventId?`On Google Calendar${j.calSyncedAt?` · synced ${new Date(j.calSyncedAt).toLocaleString('en-ZA',{day:'numeric',month:'short',hour:'numeric',minute:'2-digit'})}`:''}`:(j.calSync?'Not synced yet':'Not on your calendar');
-  openSheet('job',head(j.title||'Job',`<button class="btn ghost" data-act="editJob" data-id="${j.id}">Edit</button>`)+`<div class="sheet-body">
-    <div class="detail-head">${j.example?'<span class="tag" style="align-self:flex-start">Example</span>':''}<h3>${esc(j.title)}</h3><span class="when">${fmtRange(j.start,jobEnd(j))}${jobEnd(j)!==j.start?` · ${daysBetween(j.start,jobEnd(j))+1} days`:''}</span></div>
-    <div class="sec-block"><h2 class="sec">Status</h2><div class="status-pick">${STATUSES.map(x=>`<button class="st-${x.k}" data-act="setStatus" data-id="${j.id}" data-v="${x.k}" aria-pressed="${j.status===x.k}">${x.label}</button>`).join('')}</div></div>
-    <div class="card"><dl class="kv">${kv.map(([k,v])=>`<dt>${k}</dt><dd>${v}</dd>`).join('')}</dl>${j.notes?`<div style="white-space:pre-wrap;font-size:14px;border-top:1px solid var(--line);padding-top:10px">${esc(j.notes)}</div>`:''}</div>
-    <div class="card"><div class="row"><span class="spacer" style="min-width:160px"><b>Calendar</b><br><small class="hint">${calLine}</small></span>
-      <button class="btn sm" data-act="syncCal" data-id="${j.id}" ${S.mcp?'':'disabled'}>${j.calEventId?'Update calendar':'Add to Google Calendar'}</button></div></div>
-    <div class="card"><h2 class="sec">Charges</h2>${(j.items||[]).length?`<div class="tscroll"><table class="t"><thead><tr><th>Item</th><th class="r">Qty</th><th class="r">Rate</th><th class="r">Amount</th></tr></thead><tbody>${j.items.map(i=>`<tr><td>${esc(i.desc)}</td><td class="r">${esc(i.qty)} ${esc(i.unit)}</td><td class="r">${money(i.rate)}</td><td class="r">${money((+i.qty||0)*(+i.rate||0))}</td></tr>`).join('')}</tbody></table></div>`:'<span class="hint">No charges yet. Tap Edit to add your rates.</span>'}
-      <div class="totals"><span>Subtotal</span><span class="num">${money(t.sub)}</span>${j.gst?`<span>VAT ${t.rate}%</span><span class="num">${money(t.gst)}</span>`:''}<span class="grand">Total</span><span class="num grand">${money(t.total)}</span>${t.paid?`<span>Paid</span><span class="num">−${money(t.paid)}</span><span class="grand">Balance due</span><span class="num grand">${money(t.balance)}</span>`:''}</div></div>
+  const lines=(j.items||[]).map(i=>{const u=unitTxt(i.qty,i.unit);return `<div class="ln"><span><b>${esc(i.desc||'Item')}</b><small>${i.unit==='flat'?'Flat fee':`${esc(i.qty)} ${esc(u)} @ ${money(i.rate)}/${esc(i.unit==='half day'?'half day':i.unit)}`}</small></span><span class="num">${money((+i.qty||0)*(+i.rate||0))}</span></div>`}).join('');
+  openSheet('job',`<div class="sheet-head"><button class="round soft" data-act="closeSheet" aria-label="Back">${ic('back')}</button><h2>Booking details</h2><button class="round soft" data-act="toggleMenu" aria-label="More actions" aria-expanded="false">${ic('dots')}</button></div>
+  <div class="menu" id="moreMenu" hidden>
+    <button data-act="editJob" data-id="${j.id}">${ic('edit')}Edit booking</button>
+    <button data-act="dupJob" data-id="${j.id}">${ic('copy')}Duplicate booking</button>
+    <button data-act="syncCal" data-id="${j.id}" ${S.mcp?'':'disabled'}>${ic('sync')}${j.calEventId?'Update Google Calendar':'Add to Google Calendar'}</button>
+    <button class="danger" data-act="askDel">${ic('trash')}Delete booking</button></div>
+  <div class="sheet-sub"><span class="cap">Status</span><div class="spills">${STATUSES.map(x=>`<button class="st-${x.k}" data-act="setStatus" data-id="${j.id}" data-v="${x.k}" aria-pressed="${j.status===x.k}">${x.label}</button>`).join('')}</div></div>
+  <div class="sheet-body">
+    <div class="warnbox" id="delConfirm" hidden><b>Delete this booking?</b> Its quote, invoice and payment records go with it${j.calEventId?', and the event is removed from Google Calendar':''}. This cannot be undone.<div class="row end" style="margin-top:10px"><button class="btn sm" data-act="cancelDel">Keep it</button><button class="btn sm danger solid" data-act="delJob" data-id="${j.id}">Delete booking</button></div></div>
+    <div class="dtitle">${j.example?'<span class="badge" style="align-self:flex-start">Example</span>':''}<h3>${esc(j.title||'Untitled job')}</h3><div class="meta"><span>${ic('date')}${esc(fmtRange(j.start,jobEnd(j)))}${jobEnd(j)!==j.start?` (${daysBetween(j.start,jobEnd(j))+1} days)`:''}</span><span>${ic('clock')}${esc(timeText(j))}</span>${j.venue?`<span>${ic('pin')}${esc(j.venue)}</span>`:''}</div></div>
+    <div class="sec"><div class="sh"><span class="cap dark">Charges</span><button class="link" data-act="editJob" data-id="${j.id}">Edit</button></div>
+      <div class="card flush lines">${lines||'<div class="ln"><span class="hint">No charges yet. Tap Edit to add your rates.</span></div>'}
+        ${j.gst||t.paid?`<div class="ln subt" style="border-top:1px solid var(--line)"><span>Subtotal</span><span class="num">${money(t.sub)}</span></div>`:''}${j.gst?`<div class="ln subt"><span>VAT ${t.rate}%</span><span class="num">${money(t.gst)}</span></div>`:''}
+        <div class="ln total"><b>Total</b><span class="num">${money(t.total)}</span></div>
+        ${t.paid?`<div class="ln subt"><span>Paid</span><span class="num">−${money(t.paid)}</span></div><div class="ln subt"><span><b>Balance due</b></span><span class="num" style="color:var(--ink)">${money(t.balance)}</span></div>`:''}</div></div>
     ${quoteBlock(j,t)}
     ${invoiceBlock(j,t,ps)}
-    <div class="card" id="payCard"><div class="row"><h2 class="sec spacer">Payments</h2>${t.balance>0||!t.total?`<button class="btn sm" data-act="showPay">Record payment</button>`:''}</div>
-      <form data-form="payment" data-id="${j.id}" id="payForm" hidden class="card" style="background:var(--bg)">
+    <div class="card" id="payCard"><div class="sh"><h3>Payments</h3>${t.balance>0||!t.total?`<button class="btn sm" data-act="showPay">${ic('plus')}Record payment</button>`:''}</div>
+      <form data-form="payment" data-id="${j.id}" id="payForm" hidden class="form" style="gap:14px">
         <div class="grid2"><label class="field"><span>Amount</span><input name="amount" id="pay-amount" type="number" step="0.01" min="0.01" required value="${t.balance>0?t.balance:''}"></label><label class="field"><span>Date paid</span><input name="date" id="pay-date" type="date" required value="${today()}"></label></div>
         <div class="grid2"><label class="field"><span>Method</span><select name="method" id="pay-method">${METHODS.map(m=>`<option>${m}</option>`).join('')}</select></label><label class="field"><span>Note</span><input name="note" id="pay-note" placeholder="e.g. deposit"></label></div>
-        <div class="row end"><button type="button" class="btn" data-act="hidePay">Cancel</button><button class="btn primary" type="submit">Save payment</button></div></form>
-      ${(j.payments||[]).length?j.payments.map(p=>`<div class="pay"><span><b>${money(p.amount)}</b> · ${fmtD(p.date)}<br><small style="color:var(--ink-2)">${esc([p.method,p.note].filter(Boolean).join(' · '))}</small></span><button class="btn sm danger" data-act="delPay" data-id="${j.id}" data-p="${p.id}">Remove</button></div>`).join(''):'<span class="hint">No payments recorded.</span>'}</div>
-    <div class="row"><button class="btn" data-act="dupJob" data-id="${j.id}">Duplicate booking</button><span class="spacer"></span><button class="btn danger" data-act="askDel">Delete</button></div>
-    <div class="warnbox" id="delConfirm" hidden><b>Delete this booking?</b> Its invoice and payment records go with it${j.calEventId?', and the event is removed from Google Calendar':''}. This cannot be undone.<div class="row end" style="margin-top:8px"><button class="btn sm" data-act="cancelDel">Keep it</button><button class="btn sm danger solid" data-act="delJob" data-id="${j.id}">Delete booking</button></div></div>
+        <div class="row end"><button type="button" class="btn sm" data-act="hidePay">Cancel</button><button class="btn sm primary" type="submit">Save payment</button></div></form>
+      ${(j.payments||[]).length?`<div>${j.payments.map(p=>`<div class="pay"><span><b class="num">${money(p.amount)}</b> · ${fmtD(p.date)}<br><small>${esc([p.method,p.note].filter(Boolean).join(' · '))}</small></span><button class="link danger" data-act="delPay" data-id="${j.id}" data-p="${p.id}">Remove</button></div>`).join('')}</div>`:'<span class="hint">No payments recorded.</span>'}</div>
+    <div class="card"><div class="sh"><h3>Details</h3><button class="link" data-act="editJob" data-id="${j.id}">Edit</button></div><dl class="kv">${kv.map(([k,v])=>`<dt>${k}</dt><dd>${v}</dd>`).join('')}</dl>${j.notes?`<div style="white-space:pre-wrap;font-size:14px;border-top:1px solid var(--line);padding-top:12px">${esc(j.notes)}</div>`:''}</div>
+    <div class="card"><div class="row"><span class="ibub tone-accent">${ic('date')}</span><span class="spacer" style="min-width:140px"><b>Google Calendar</b><br><small class="hint">${calLine}</small></span><button class="btn sm" data-act="syncCal" data-id="${j.id}" ${S.mcp?'':'disabled'}>${j.calEventId?'Update':'Add'}</button></div></div>
   </div>`);
   if(refresh){const nb=$('#sheetCard .sheet-body');if(nb)nb.scrollTop=scroll}
 }
+const dateFields=(doc,a,b,j,la,lb)=>`<details class="dates"><summary>Change dates ›</summary><div class="grid2"><label class="field"><span>${la}</span><input type="date" data-act-change="invDate" data-doc="${doc}" data-k="${a[0]}" data-id="${j.id}" value="${esc(a[1])}"></label><label class="field"><span>${lb}</span><input type="date" data-act-change="invDate" data-doc="${doc}" data-k="${b[0]}" data-id="${j.id}" value="${esc(b[1])}"></label></div></details>`;
+const sentText=(d,fallback)=>d.sentAt?`Sent ${new Date(d.sentAt).toLocaleDateString('en-ZA',{day:'numeric',month:'short'})}`:fallback;
 function quoteBlock(j,t){
   const s=S.settings,q=j.quote;
-  if(!q)return `<div class="card"><div class="row"><span class="spacer" style="min-width:160px"><b>Quote</b><br><small class="hint">Creates quote ${esc(s.quotePrefix)}${esc(s.nextQuoteNo)}, valid for ${esc(s.quoteValidDays)} days. Nothing is sent yet.</small></span><button class="btn sm" data-act="makeQuote" data-id="${j.id}" ${t.total>0?'':'disabled'}>Create quote</button></div>${t.total>0?'':'<span class="hint">Add charges first.</span>'}</div>`;
+  if(!q)return `<div class="card doc"><div class="hd"><span class="ibub tone-accent">${ic('quote')}</span><span class="t"><b>Quote</b><small>Will be ${esc(s.quotePrefix)}${esc(s.nextQuoteNo)}, valid ${esc(s.quoteValidDays)} days</small></span></div>
+    <div class="acts"><button class="btn primary" data-act="makeQuote" data-id="${j.id}" ${t.total>0?'':'disabled'}>Create quote</button></div>${t.total>0?'':'<span class="hint">Add charges first.</span>'}</div>`;
   const exp=q.validUntil&&q.validUntil<today()&&!q.acceptedAt;
-  const pill=q.acceptedAt?'<span class="pill pp-paid">Accepted</span>':exp?'<span class="pill pp-overdue">Expired</span>':q.sentAt?'<span class="pill pp-sent">Quoted</span>':'<span class="pill pp-draft">Quote not sent</span>';
-  return `<div class="card"><div class="row"><h2 class="sec spacer">Quote ${esc(q.no)}</h2>${pill}</div>
-    <div class="grid2"><label class="field"><span>Quote date</span><input type="date" id="quo-issued" data-act-change="invDate" data-doc="quote" data-k="issued" data-id="${j.id}" value="${esc(q.issued)}"></label><label class="field"><span>Valid until</span><input type="date" id="quo-valid" data-act-change="invDate" data-doc="quote" data-k="validUntil" data-id="${j.id}" value="${esc(q.validUntil)}"></label></div>
-    <span class="hint">${q.sentAt?`Sent ${new Date(q.sentAt).toLocaleString('en-ZA',{day:'numeric',month:'short',hour:'numeric',minute:'2-digit'})}${q.sentTo?' to '+esc(q.sentTo):''}`:'Not sent yet'}${q.acceptedAt?` · accepted ${fmtD(iso(new Date(q.acceptedAt)))}`:''} · Uses this job's current charges, ${money(t.total)}.</span>
-    <div class="row">
-      <button class="btn ${q.sentAt?'':'primary'}" data-act="emailQuote" data-id="${j.id}" ${S.mcp?'':'disabled'}>${q.sentAt?'Resend quote':'Email quote'}</button>
-      <button class="btn" data-act="sharePdf" data-k="quote" data-id="${j.id}">Share PDF</button>
-      <button class="btn" data-act="pdfInv" data-k="quote" data-id="${j.id}">Save PDF</button>
-      ${q.sentAt?'':`<button class="btn" data-act="markQuoteSent" data-id="${j.id}">Mark as sent</button>`}
-      ${q.acceptedAt?'':`<button class="btn" data-act="acceptQuote" data-id="${j.id}">Client accepted</button>`}
-    </div></div>`;
+  const badge=q.acceptedAt?'<span class="sbadge pp-paid">Accepted</span>':exp?'<span class="sbadge pp-overdue">Expired</span>':q.sentAt?'<span class="sbadge pp-sent">Sent</span>':'<span class="sbadge pp-draft">Draft</span>';
+  return `<div class="card doc"><div class="hd"><span class="ibub tone-accent">${ic('quote')}</span><span class="t"><b>Quote ${esc(q.no)}</b><small>${sentText(q,'Not sent yet')} · valid to ${fmtD(q.validUntil,{day:'numeric',month:'short'})}</small></span>${badge}</div>
+    <div class="acts"><button class="btn primary" data-act="emailQuote" data-id="${j.id}" ${S.mcp?'':'disabled'}>${q.sentAt?'Resend via email':'Send via email'}</button><button class="round" style="color:var(--ink)" data-act="sharePdf" data-k="quote" data-id="${j.id}" aria-label="Share quote PDF">${ic('pdf')}</button></div>
+    <div class="more">${q.acceptedAt?'':`<button class="link" data-act="acceptQuote" data-id="${j.id}">${ic('check')}Client accepted</button>`}<button class="link muted" data-act="pdfInv" data-k="quote" data-id="${j.id}">Save PDF</button>${q.sentAt?'':`<button class="link muted" data-act="markQuoteSent" data-id="${j.id}">Mark as sent</button>`}</div>
+    ${dateFields('quote',['issued',q.issued],['validUntil',q.validUntil],j,'Quote date','Valid until')}
+    <span class="hint">Uses this job's current charges.</span></div>`;
 }
 function invoiceBlock(j,t,ps){
-  if(!j.invoice)return `<div class="card"><div class="row"><span class="spacer" style="min-width:160px"><b>Invoice</b><br><small class="hint">Creates invoice ${esc(S.settings.invoicePrefix)}${esc(S.settings.nextInvoiceNo)}, due in ${esc(S.settings.termsDays)} days. Nothing is sent yet.</small></span><button class="btn primary sm" data-act="makeInvoice" data-id="${j.id}" ${t.total>0?'':'disabled'}>Create invoice</button></div>${t.total>0?'':'<span class="hint">Add charges first.</span>'}</div>`;
-  const i=j.invoice;
-  return `<div class="card"><div class="row"><h2 class="sec spacer">Invoice ${esc(i.no)}</h2>${payPill(ps)}</div>
-    <div class="grid2"><label class="field"><span>Issued</span><input type="date" id="inv-issued" data-act-change="invDate" data-k="issued" data-id="${j.id}" value="${esc(i.issued)}"></label><label class="field"><span>Due</span><input type="date" id="inv-due" data-act-change="invDate" data-k="due" data-id="${j.id}" value="${esc(i.due)}"></label></div>
-    <span class="hint">${i.sentAt?`Sent ${new Date(i.sentAt).toLocaleString('en-ZA',{day:'numeric',month:'short',hour:'numeric',minute:'2-digit'})}${i.sentTo?' to '+esc(i.sentTo):''}`:'Not sent yet'}${(i.reminders||[]).length?` · ${i.reminders.length} reminder${i.reminders.length>1?'s':''} sent`:''}</span>
-    <div class="row">
-      <button class="btn primary" data-act="emailInv" data-id="${j.id}" ${S.mcp?'':'disabled'}>${ps==='overdue'||(i.sentAt&&t.balance>0)?'Send reminder':'Email invoice'}</button>
-      <button class="btn" data-act="sharePdf" data-k="invoice" data-id="${j.id}">Share PDF</button>
-      <button class="btn" data-act="pdfInv" data-k="invoice" data-id="${j.id}">Save PDF</button>
-      ${i.sentAt?'':`<button class="btn" data-act="markSent" data-id="${j.id}">Mark as sent</button>`}
-    </div></div>`;
+  const s=S.settings;
+  if(!j.invoice)return `<div class="card doc st-heavy"><div class="hd"><span class="ibub">${ic('inv')}</span><span class="t"><b>Invoice</b><small>Will be ${esc(s.invoicePrefix)}${esc(s.nextInvoiceNo)}, due in ${esc(s.termsDays)} days</small></span><span class="sbadge pp-draft">Not created</span></div>
+    <div class="acts"><button class="btn primary" data-act="makeInvoice" data-id="${j.id}" ${S.mcp?'data-send="1"':''} ${t.total>0?'':'disabled'}>${S.mcp?'Generate & send':'Create invoice'}</button></div>${t.total>0?'':'<span class="hint">Add charges first.</span>'}</div>`;
+  const i=j.invoice,rem=ps==='overdue'||(i.sentAt&&t.balance>0);
+  return `<div class="card doc st-heavy"><div class="hd"><span class="ibub">${ic('inv')}</span><span class="t"><b>Invoice ${esc(i.no)}</b><small>${sentText(i,'Not sent yet')} · due ${fmtD(i.due,{day:'numeric',month:'short'})}${(i.reminders||[]).length?` · ${i.reminders.length} reminder${i.reminders.length>1?'s':''}`:''}</small></span><span class="sbadge pp-${ps}">${PAYLBL[ps]}</span></div>
+    <div class="acts"><button class="btn primary" data-act="emailInv" data-id="${j.id}" ${S.mcp?'':'disabled'}>${rem?'Send reminder':'Send via email'}</button><button class="round" style="color:var(--ink)" data-act="sharePdf" data-k="invoice" data-id="${j.id}" aria-label="Share invoice PDF">${ic('pdf')}</button></div>
+    <div class="more"><button class="link muted" data-act="pdfInv" data-k="invoice" data-id="${j.id}">Save PDF</button>${i.sentAt?'':`<button class="link muted" data-act="markSent" data-id="${j.id}">Mark as sent</button>`}</div>
+    ${dateFields('invoice',['issued',i.issued],['due',i.due],j,'Issued','Due')}</div>`;
 }
 
 /* job form */
@@ -639,31 +815,29 @@ function openJobForm(j){
   const nd=bookDays(d);(d.items||[]).forEach(i=>{if(i.unit==='day'&&i.auto===undefined)i.auto=(+i.qty===nd)});
   const crew=[...new Set([...(S.settings.crew||'').split('\n').map(x=>x.trim()),...S.jobs.map(x=>x.engineer)].filter(Boolean))];
   const f=(k,l,t='text',x='')=>`<label class="field"><span>${l}</span><input name="${k}" id="jf-${k}" type="${t}" value="${esc(d[k])}" ${x}></label>`;
-  openSheet('jobform',head(d._new?'New booking':'Edit booking',`<button class="btn primary sm" type="submit" form="jobForm">Save</button>`)+`<div class="sheet-body"><form id="jobForm" data-form="job" class="sec-block" style="gap:16px">
-    <div class="card">
-      ${f('title','Job title','text','required placeholder="e.g. FOH engineer – corporate awards night"')}
-      <label class="field"><span>Client</span><select name="clientId" id="jf-clientId"><option value="">Choose a client</option>${S.clients.map(c=>`<option value="${c.id}" ${c.id===d.clientId?'selected':''}>${esc(c.name)}</option>`).join('')}<option value="__new">+ New client…</option></select></label>
-      <div id="newClientBox" hidden class="grid2"><label class="field"><span>New client name</span><input id="jf-ncName" name="ncName"></label><label class="field"><span>Client email</span><input id="jf-ncEmail" name="ncEmail" type="email"></label></div>
-    </div>
-    <div class="card"><h2 class="sec">Status</h2><div class="status-pick" id="jfStatus">${STATUSES.map(x=>`<button type="button" class="st-${x.k}" data-act="draftStatus" data-v="${x.k}" aria-pressed="${d.status===x.k}">${x.label}</button>`).join('')}</div></div>
-    <div class="card"><h2 class="sec">When</h2>
-      <div class="grid2">${f('start','Start date','date','required')}${f('end','End date','date')}</div>
-      <div class="grid2">${f('callTime','Call time','time')}${f('finishTime','Finish time','time')}</div>
-      <span class="hint">Leave the times empty for an all-day booking.</span><div id="clash"></div>
-    </div>
-    <div class="card"><h2 class="sec">Who and where</h2>
-      <div class="grid2"><label class="field"><span>Engineer / tech</span><input name="engineer" id="jf-engineer" list="crewList" value="${esc(d.engineer)}"><datalist id="crewList">${crew.map(c=>`<option value="${esc(c)}">`).join('')}</datalist></label>${f('role','Role','text','placeholder="e.g. FOH, monitors, lighting"')}</div>
-      <div class="grid2">${f('venue','Venue / site')}${f('address','Address')}</div>
-      <div class="grid2">${f('siteContact','On-site contact')}${f('sitePhone','Contact phone','tel')}</div>
-      ${f('po','Client PO / reference')}
-    </div>
-    <div class="card"><h2 class="sec">Charges</h2><div class="items" id="items"></div><div id="dayHint"></div>
-      <div class="row"><button type="button" class="btn sm" data-act="addItem">+ Line</button><button type="button" class="btn sm" data-act="addItem" data-d="Day rate" data-u="day" data-r="${S.settings.defaultRate||''}">+ Day rate</button><button type="button" class="btn sm" data-act="addItem" data-d="Overtime" data-u="hour">+ Overtime</button><button type="button" class="btn sm" data-act="addItem" data-d="Travel" data-u="km" data-r="${S.settings.travelRate||''}">+ Travel km</button><button type="button" class="btn sm" data-act="addItem" data-d="Expenses (receipts attached)" data-u="flat">+ Expense</button></div>
-      <label class="switch"><span>Charge VAT (${esc(S.settings.gstRate)}%)</span><input type="checkbox" id="jf-gst" name="gst" ${d.gst?'checked':''}></label>
-      <div class="totals" id="jfTotals"></div></div>
-    <div class="card"><label class="field"><span>Notes</span><textarea name="notes" id="jf-notes" rows="3" placeholder="Gear, parking, dress code, run sheet…">${esc(d.notes)}</textarea></label>
-      <label class="switch"><span>Keep on Google Calendar<br><small class="hint">${S.mcp?'Creates or updates the event when you save':'Calendar is not available in this view'}</small></span><input type="checkbox" id="jf-calSync" name="calSync" ${d.calSync?'checked':''} ${S.mcp?'':'disabled'}></label></div>
-  </form></div><div class="sheet-foot"><button class="btn" data-act="closeSheet">Cancel</button><button class="btn primary" type="submit" form="jobForm">Save booking</button></div>`);
+  openSheet('jobform',head(d._new?'New booking':'Edit booking',`<button class="tbtn r" type="submit" form="jobForm">Save</button>`,`<button class="tbtn" data-act="closeSheet">Cancel</button>`)+`<div class="sheet-body"><form id="jobForm" data-form="job" class="form">
+    ${f('title','Event name','text','required placeholder="e.g. Waterfront Stage"')}
+    <div class="field"><label class="field"><span>Client</span><select name="clientId" id="jf-clientId"><option value="">Select a client</option>${S.clients.map(c=>`<option value="${c.id}" ${c.id===d.clientId?'selected':''}>${esc(c.name)}</option>`).join('')}<option value="__new">+ New client…</option></select></label>
+      <button type="button" class="link" style="align-self:flex-start" data-act="ncToggle">${ic('plus')}Create new client</button></div>
+    <div id="newClientBox" hidden class="grid2"><label class="field"><span>New client name</span><input id="jf-ncName" name="ncName"></label><label class="field"><span>Client email</span><input id="jf-ncEmail" name="ncEmail" type="email"></label></div>
+    <div class="field"><span>Status</span><div class="spills" id="jfStatus">${STATUSES.map(x=>`<button type="button" class="st-${x.k}" data-act="draftStatus" data-v="${x.k}" aria-pressed="${d.status===x.k}">${x.label}</button>`).join('')}</div></div>
+    <div class="grid2">${f('start','Start date','date','required')}${f('end','End date','date')}</div>
+    <div class="grid2">${f('callTime','Start time','time')}${f('finishTime','End time','time')}</div>
+    <span class="hint" style="margin-top:-10px">Leave the times empty for an all-day booking.</span><div id="clash"></div>
+    <div class="grid2">${f('venue','Location','text','placeholder="e.g. Cape Town"')}${f('address','Address')}</div>
+    <div class="grid2"><label class="field"><span>Engineer / tech</span><input name="engineer" id="jf-engineer" list="crewList" value="${esc(d.engineer)}"><datalist id="crewList">${crew.map(c=>`<option value="${esc(c)}">`).join('')}</datalist></label>${f('role','Role','text','placeholder="FOH, monitors…"')}</div>
+    <div class="grid2">${f('siteContact','On-site contact')}${f('sitePhone','Contact phone','tel')}</div>
+    ${f('po','Client PO / reference')}
+    <hr class="sep">
+    <div class="sh"><span class="cap">Charges & line items</span><button type="button" class="link" data-act="addItem">Add row</button></div>
+    <div class="items" id="items"></div><div id="dayHint"></div>
+    <div class="chips" style="margin-top:-6px"><button type="button" class="chip" data-act="addItem" data-d="Day rate" data-u="day" data-r="${S.settings.defaultRate||''}">+ Day rate</button><button type="button" class="chip" data-act="addItem" data-d="Overtime" data-u="hour">+ Overtime</button><button type="button" class="chip" data-act="addItem" data-d="Travel" data-u="km" data-r="${S.settings.travelRate||''}">+ Travel km</button><button type="button" class="chip" data-act="addItem" data-d="Expenses (receipts attached)" data-u="flat">+ Expense</button></div>
+    <label class="switch"><span>Charge VAT (${esc(S.settings.gstRate)}%)</span><input type="checkbox" id="jf-gst" name="gst" ${d.gst?'checked':''}></label>
+    <div class="total-card" id="jfTotals"></div>
+    <label class="field"><span>Notes</span><textarea name="notes" id="jf-notes" rows="3" placeholder="Gear, parking, dress code, run sheet…">${esc(d.notes)}</textarea></label>
+    <label class="switch"><span>Keep on Google Calendar<br><small class="hint">${S.mcp?'Creates or updates the event when you save':'Calendar is not available in this view'}</small></span><input type="checkbox" id="jf-calSync" name="calSync" ${d.calSync?'checked':''} ${S.mcp?'':'disabled'}></label>
+    <button class="btn primary" type="submit">Save booking</button>
+  </form></div>`);
   renderItems();checkClash();
 }
 function renderItems(){
@@ -674,7 +848,7 @@ function renderItems(){
     <select class="inp" id="it-u-${n}" data-item="unit" aria-label="Unit">${UNITS.map(u=>`<option ${u===i.unit?'selected':''}>${u}</option>`).join('')}</select>
     <input class="inp" id="it-r-${n}" data-item="rate" type="number" step="0.01" min="0" value="${esc(i.rate)}" placeholder="Rate" aria-label="Rate">
     <span class="amt">${money((+i.qty||0)*(+i.rate||0))}</span>
-    <button type="button" class="xbtn" data-act="rmItem" data-n="${n}" aria-label="Remove line">✕</button></div>`).join('')||'<span class="hint">No charges yet. Add your day rate, overtime, travel or expenses.</span>';
+    <button type="button" class="xbtn" data-act="rmItem" data-n="${n}" aria-label="Remove line">${ic('x')}</button></div>`).join('')||'<span class="hint">No charges yet. Add your day rate, overtime, travel or expenses.</span>';
   renderDayHint();renderDraftTotals();
 }
 function renderDayHint(){
@@ -688,12 +862,12 @@ function syncDayQty(force){
   (d.items||[]).forEach(i=>{if(i.unit==='day'&&(force||i.auto)){i.qty=nd;i.auto=true}});
   renderItems();
 }
-function renderDraftTotals(){const t=totals(S.draft),el=$('#jfTotals');if(el)el.innerHTML=`<span>Subtotal</span><span class="num">${money(t.sub)}</span>${S.draft.gst?`<span>VAT</span><span class="num">${money(t.gst)}</span>`:''}<span class="grand">Total</span><span class="num grand">${money(t.total)}</span>`}
+function renderDraftTotals(){const t=totals(S.draft),el=$('#jfTotals');if(el)el.innerHTML=`<span class="lbl">Estimated total${S.draft.gst?`<small>${money(t.sub)} + VAT ${money(t.gst)}</small>`:''}</span><span class="num">${money(t.total)}</span>`}
 function checkClash(){
   const d=S.draft,box=$('#clash');if(!box||!d)return;
-  const e=d.end||d.start,act=['blocked','heavy','confirmed'];
-  if(!d.start||!act.includes(d.status)){box.innerHTML='';return}
-  const hits=S.jobs.filter(j=>j.id!==d.id&&act.includes(j.status)&&j.start<=e&&jobEnd(j)>=d.start&&(!d.engineer||!j.engineer||j.engineer.trim().toLowerCase()===d.engineer.trim().toLowerCase()));
+  const e=d.end||d.start;
+  if(!d.start||!ACTIVE.includes(d.status)){box.innerHTML='';return}
+  const hits=S.jobs.filter(j=>j.id!==d.id&&ACTIVE.includes(j.status)&&j.start<=e&&jobEnd(j)>=d.start&&sameCrew(d,j));
   box.innerHTML=hits.length?`<div class="warnbox"><b>Date clash${d.engineer?` for ${esc(d.engineer)}`:''}:</b> ${hits.map(j=>`${esc(j.title)} (${ST[j.status].label}, ${fmtRange(j.start,jobEnd(j))})`).join('; ')}. You can still save.</div>`:'';
 }
 function readJobForm(){
@@ -704,33 +878,35 @@ function readJobForm(){
   d.items=(d.items||[]).filter(i=>i.desc||+i.rate);
 }
 
-/* client forms */
+/* client sheets */
 function openClient(id){
   const c=client(id);if(!c)return;const st=clientStats(c);
   const js=S.jobs.filter(j=>j.clientId===id).slice().reverse();
-  openSheet('client',head(c.name,`<button class="btn ghost" data-act="editClient" data-id="${id}">Edit</button>`)+`<div class="sheet-body">
-    <div class="detail-head"><h3>${esc(c.name)}</h3><span class="when">${st.n} jobs · ${money(st.billed)} booked${st.owed>0?` · <b style="color:var(--warn)">${money(st.owed)} owed</b>`:''}</span></div>
+  openSheet('client',head('Client',`<button class="tbtn r" data-act="editClient" data-id="${id}">Edit</button>`)+`<div class="sheet-body">
+    <div class="profile"><span class="cav lg">${esc(initials(c.name))}</span><span><b>${esc(c.name)}</b><small>${st.n} jobs · ${money(st.billed)} booked${st.owed>0?` · <span style="color:var(--warn);font-weight:700">${money(st.owed)} owed</span>`:''}</small></span></div>
+    ${contactActs(c)}
     <div class="card"><dl class="kv">
       <dt>Contact</dt><dd>${esc(c.contact||'—')}</dd>
-      <dt>Email</dt><dd>${c.email?`<span class="num" style="font-size:13px">${esc(c.email)}</span><button class="copy" data-act="copy" data-t="${esc(c.email)}">Copy</button>`:'—'}</dd>
-      <dt>Phone</dt><dd>${c.phone?`<span class="num" style="font-size:13px">${esc(c.phone)}</span><button class="copy" data-act="copy" data-t="${esc(c.phone)}">Copy</button>`:'—'}</dd>
+      <dt>Email</dt><dd>${c.email?`${esc(c.email)}<button class="copy" data-act="copy" data-t="${esc(c.email)}">Copy</button>`:'—'}</dd>
+      <dt>Phone</dt><dd>${c.phone?`${esc(c.phone)}<button class="copy" data-act="copy" data-t="${esc(c.phone)}">Copy</button>`:'—'}</dd>
       <dt>Billing address</dt><dd style="white-space:pre-wrap">${esc(c.address||'—')}</dd>
       <dt>VAT number</dt><dd>${esc(c.abn||'—')}</dd>
       ${c.notes?`<dt>Notes</dt><dd style="white-space:pre-wrap">${esc(c.notes)}</dd>`:''}</dl></div>
-    <div class="row"><button class="btn primary" data-act="newJob" data-client="${id}">+ Booking for ${esc(c.name)}</button></div>
-    <div class="sec-block"><h2 class="sec">Jobs</h2>${js.length?`<div class="list">${js.map(jobCard).join('')}</div>`:'<span class="hint">No jobs yet.</span>'}</div>
+    <button class="btn primary" data-act="newJob" data-client="${id}">${ic('plus')}New booking for ${esc(c.name)}</button>
+    <div class="sec"><span class="cap dark">Jobs</span>${js.length?`<div class="list">${js.map(jobCard).join('')}</div>`:'<span class="hint">No jobs yet.</span>'}</div>
   </div>`);
 }
 function openClientForm(c){
   const d=c||{id:newId(),name:'',contact:'',email:'',phone:'',address:'',abn:'',notes:'',_new:true};
   const f=(k,l,t='text')=>`<label class="field"><span>${l}</span><input name="${k}" id="cf-${k}" type="${t}" value="${esc(d[k])}" ${k==='name'?'required':''}></label>`;
-  openSheet('clientform',head(d._new?'New client':'Edit client',`<button class="btn primary sm" type="submit" form="clientForm">Save</button>`)+`<div class="sheet-body"><form id="clientForm" data-form="client" data-id="${d.id}" data-new="${d._new?1:''}" class="card">
+  openSheet('clientform',head(d._new?'New client':'Edit client',`<button class="tbtn r" type="submit" form="clientForm">Save</button>`,`<button class="tbtn" data-act="closeSheet">Cancel</button>`)+`<div class="sheet-body"><form id="clientForm" data-form="client" data-id="${d.id}" data-new="${d._new?1:''}" class="form">
     ${f('name','Company or client name')}${f('contact','Contact person')}
-    <div class="grid2">${f('email','Email for invoices','email')}${f('phone','Phone','tel')}</div>
+    <div class="grid2">${f('email','Email for invoices','email')}${f('phone','Phone / WhatsApp','tel')}</div>
     <label class="field"><span>Billing address</span><textarea name="address" id="cf-address" rows="2">${esc(d.address)}</textarea></label>
     ${f('abn','Client VAT number (if VAT registered)')}
     <label class="field"><span>Notes</span><textarea name="notes" id="cf-notes" rows="2" placeholder="Accounts contact, PO rules, preferred rates…">${esc(d.notes)}</textarea></label>
-    ${d._new?'':`<div class="row"><span class="spacer"></span><button type="button" class="btn danger" data-act="askDel">Delete client</button></div><div class="warnbox" id="delConfirm" hidden>Delete ${esc(d.name)}? Their jobs stay, without a client.<div class="row end" style="margin-top:8px"><button type="button" class="btn sm" data-act="cancelDel">Keep</button><button type="button" class="btn sm danger solid" data-act="delClient" data-id="${d.id}">Delete client</button></div></div>`}
+    <button class="btn primary" type="submit">Save client</button>
+    ${d._new?'':`<button type="button" class="btn danger" data-act="askDel">Delete client</button><div class="warnbox" id="delConfirm" hidden>Delete ${esc(d.name)}? Their jobs stay, without a client.<div class="row end" style="margin-top:10px"><button type="button" class="btn sm" data-act="cancelDel">Keep</button><button type="button" class="btn sm danger solid" data-act="delClient" data-id="${d.id}">Delete client</button></div></div>`}
   </form></div>`);
 }
 
@@ -841,6 +1017,14 @@ async function saveFile(filename,data){
 /* ---------- actions ---------- */
 const ACT={
   tab:d=>{S.view=d.v;closeSheet();renderTabs();render();window.scrollTo(0,0)},
+  jobFilterGo:d=>{S.jobFilter=d.v;S.view='jobs';renderTabs();render();window.scrollTo(0,0)},
+  attnAll:()=>{S.attnAll=!S.attnAll;render()},
+  moneyAll:()=>{S.moneyAll=!S.moneyAll;render()},
+  scrollCar:d=>{const c=$('#car');if(c)c.scrollBy({left:(+d.n)*((c.firstElementChild?.offsetWidth||280)+14),behavior:'smooth'})},
+  az:d=>{$('#L-'+d.v)?.scrollIntoView({behavior:'smooth',block:'start'})},
+  setGroup:d=>openSettings(d.v),
+  toggleMenu:(d,b)=>{const m=$('#moreMenu');m.hidden=!m.hidden;b.setAttribute('aria-expanded',String(!m.hidden))},
+  ncToggle:()=>{const sel=$('#jf-clientId');sel.value='__new';$('#newClientBox').hidden=false;$('#jf-ncName').focus()},
   newJob:d=>{const j=blankJob(d.date);if(d.client)j.clientId=d.client;openJobForm(j)},
   openJob:d=>openJob(d.id),
   editJob:d=>{const j=S.jobs.find(x=>x.id===d.id);if(j)openJobForm(j)},
@@ -859,7 +1043,7 @@ const ACT={
   syncCal:async(d,b)=>{const j=S.jobs.find(x=>x.id===d.id);await busy(b,()=>doSync(j))},
   makeInvoice:async(d,b)=>{const j=clone(S.jobs.find(x=>x.id===d.id)),s=S.settings,no=`${s.invoicePrefix||''}${s.nextInvoiceNo}`;
     j.invoice={no,issued:today(),due:addDays(today(),+s.termsDays||0),gstRate:+s.gstRate||0,sentAt:null,reminders:[]};
-    await busy(b,async()=>{await store.saveSettings({nextInvoiceNo:(+s.nextInvoiceNo||0)+1});await store.saveJob(j)});toast(`Invoice ${no} created`)},
+    await busy(b,async()=>{await store.saveSettings({nextInvoiceNo:(+s.nextInvoiceNo||0)+1});await store.saveJob(j)});toast(`Invoice ${no} created`);if(d.send&&S.mcp&&window.jspdf)openEmail(j)},
   markSent:async d=>{const j=clone(S.jobs.find(x=>x.id===d.id));j.invoice.sentAt=Date.now();await store.saveJob(j);toast('Marked as sent')},
   pdfInv:async d=>{const j=S.jobs.find(x=>x.id===d.id),k=d.k||'invoice';if(!window.jspdf){toast('The PDF maker did not load. Reload and try again.',1);return}await saveFile(invFileName(j,k),buildPdf(j,k).output('blob'))},
   sharePdf:async d=>{const j=S.jobs.find(x=>x.id===d.id),k=d.k||'invoice';if(!window.jspdf){toast('The PDF maker did not load. Reload and try again.',1);return}
@@ -881,7 +1065,7 @@ const ACT={
   showPay:()=>{$('#payForm').hidden=false;$('#pay-amount').focus()},
   hidePay:()=>{$('#payForm').hidden=true},
   delPay:async d=>{const j=clone(S.jobs.find(x=>x.id===d.id));j.payments=(j.payments||[]).filter(p=>p.id!==d.p);await store.saveJob(j);toast('Payment removed')},
-  askDel:()=>{$('#delConfirm').hidden=false;$('#delConfirm').scrollIntoView({block:'nearest'})},
+  askDel:()=>{const m=$('#moreMenu');if(m)m.hidden=true;$('#delConfirm').hidden=false;$('#delConfirm').scrollIntoView({block:'nearest'})},
   cancelDel:()=>{$('#delConfirm').hidden=true},
   delJob:async(d,b)=>{const j=S.jobs.find(x=>x.id===d.id);await busy(b,async()=>{
     if(j.calEventId&&S.mcp){try{await S.mcp.callTool('Google Calendar','delete_event',{eventId:j.calEventId,notificationLevel:'NONE'})}catch(e){toast(mcpMsg(e,'Google Calendar')+' The calendar event may still be there.',1)}}
@@ -898,7 +1082,7 @@ const ACT={
     S.jobs.forEach(j=>(j.payments||[]).forEach(p=>rows.push([p.date,p.amount,p.method,p.note,j.invoice?.no||'',j.title,client(j.clientId)?.name||''])));
     saveFile(`my-booking-360-payments-${today()}.csv`,rows.map(r=>r.map(csvCell).join(',')).join('\n'))},
 };
-document.addEventListener('click',e=>{const b=e.target.closest('[data-act]');if(!b)return;if(b.tagName==='A')return;const f=ACT[b.dataset.act];if(f){e.preventDefault();f(b.dataset,b,e)}});
+document.addEventListener('click',e=>{const mm=$('#moreMenu');if(mm&&!mm.hidden&&!e.target.closest('#moreMenu,[data-act=toggleMenu]'))mm.hidden=true;const b=e.target.closest('[data-act]');if(!b)return;if(b.tagName==='A')return;const f=ACT[b.dataset.act];if(f){e.preventDefault();f(b.dataset,b,e)}});
 $('#sheet').addEventListener('click',e=>{if(e.target.id==='sheet')closeSheet()});
 document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!$('#sheet').hidden)closeSheet()});
 document.addEventListener('input',e=>{
@@ -913,7 +1097,6 @@ document.addEventListener('input',e=>{
 });
 document.addEventListener('change',async e=>{
   const t=e.target;
-  if(t.id==='curSel'){const old=S.settings.currency;try{await store.saveSettings({currency:t.value});toast(`Currency set to ${t.value}`)}catch{t.value=old}return}
   if(t.id==='jf-gst'&&S.draft){S.draft.gst=t.checked;renderDraftTotals()}
   if(t.id==='jf-clientId'){$('#newClientBox').hidden=t.value!=='__new';if(t.value==='__new')$('#jf-ncName').focus()}
   if(t.dataset.actChange==='invDate'&&t.value){const j=clone(S.jobs.find(x=>x.id===t.dataset.id)),doc=t.dataset.doc||'invoice';j[doc][t.dataset.k]=t.value;await store.saveJob(j);toast(doc==='quote'?'Quote date saved':'Invoice date saved')}
@@ -937,7 +1120,7 @@ document.addEventListener('submit',async e=>{
     const prev=client(c.id);await store.saveClient({...(prev||{}),...c,example:prev?.example||false});closeSheet();toast('Client saved');openClient(c.id);
   }else if(kind==='settings'){
     const v={};[...fm.elements].forEach(el=>{if(!el.name)return;v[el.name]=el.type==='checkbox'?el.checked:el.type==='number'?(el.value===''?0:+el.value):el.value.trim()});
-    await store.saveSettings(v);toast('Settings saved');
+    await store.saveSettings(v);toast('Settings saved');if($('#sheetCard').dataset.kind==='settings')closeSheet();
   }else if(kind==='payment'){
     const j=clone(S.jobs.find(x=>x.id===fm.dataset.id));j.payments=j.payments||[];
     j.payments.push({id:newId(),amount:r2(fm.elements.amount.value),date:fm.elements.date.value,method:fm.elements.method.value,note:fm.elements.note.value.trim()});

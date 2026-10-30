@@ -17,7 +17,7 @@ console.log(['QUOTATION','QUO-1001','Valid until','PREPARED FOR','Accepting this
 await p.click('[data-act=emailQuote]');console.log(await p.evaluate(()=>[$('#em-subject').value,$('#em-body').value.split('\n')[2]]));
 await p.click('#sendBtn');await p.waitForTimeout(300);console.log('sentTo',await p.evaluate(()=>S.jobs[0].quote.sentTo));
 await p.click('[data-act=acceptQuote]');await p.waitForTimeout(200);console.log('status',await p.evaluate(()=>S.jobs[0].status));
-await p.click('[data-act=makeInvoice]');await p.waitForTimeout(200);
+await p.click('[data-act=makeInvoice]');await p.waitForTimeout(200);console.log('email sheet opened',await p.evaluate(()=>$('#sheetCard').dataset.kind));await p.evaluate(()=>openJob('j1'));
 await p.click('[data-act=sharePdf][data-k=invoice]');await p.waitForTimeout(300);console.log('saved',await p.evaluate(()=>window._saved));
 await p.evaluate(()=>$('#sheetCard .sheet-body').scrollTop=500);await p.screenshot({path:process.argv[3]+'/inv.png'});
 await b.close()})();

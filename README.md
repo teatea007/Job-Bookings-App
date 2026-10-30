@@ -15,7 +15,7 @@ https://claude.ai/artifact/3HB5ZtUvgx1CvgBE17zb34 (private to the owner's Claude
 - **Payments**: full or part payments, balances and overdue flags
 - **Google Calendar sync** with status colours
 - **Dashboard**, calendar view, clash warnings, charts, top clients, CSV exports for VAT201 / provisional tax
-- Light tropical colour theme
+- v2 design from UX Pilot: big screen titles, cream and teal palette, status-coloured cards, booking carousel, one-tap WhatsApp / call / email for clients
 
 ## How it runs
 
@@ -35,7 +35,9 @@ Opened anywhere else (for example straight from disk), it falls back to saving i
 ```
 index.html            the app (HTML, CSS and JS in one file)
 tests/                Playwright checks used while building features
-docs/screenshots/     screenshots from those checks
+docs/screenshots/     current screens (v2 design) with sample data
+docs/design/ux-pilot/ the UX Pilot designs the v2 look is based on
+archive/v1-tropical/  the previous design, saved as a complete working copy (git tag ui-v1-tropical)
 dev/patches/          the scripts that applied each feature change to index.html
 ```
 
