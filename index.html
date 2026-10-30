@@ -265,7 +265,7 @@ const curOptions=sel=>{const list=CURRENCIES.some(c=>c[0]===sel)?CURRENCIES:[[se
 const METHODS=['EFT','Instant EFT / PayShap','Card','Cash','SnapScan / Zapper','Other'];
 const DEFAULTS={businessName:'',ownerName:'',abn:'',email:'',phone:'',address:'',gstRegistered:true,gstRate:15,currency:'ZAR',
   termsDays:30,invoicePrefix:'INV-',nextInvoiceNo:1001,bankName:'',accountName:'',bsb:'',accountNo:'',accountType:'',swift:'',regNo:'',travelRate:4.76,timeZone:'Africa/Johannesburg',region:'ZA',
-  invoiceNotes:'Thank you for your business.',defaultRate:0,defaultUnit:'day',crew:'',autoSync:true};
+  invoiceNotes:'Thank you for your business.',quotePrefix:'QUO-',nextQuoteNo:1001,quoteValidDays:30,defaultRate:0,defaultUnit:'day',crew:'',autoSync:true};
 const ICONS={
   home:'<path d="M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/>',
   jobs:'<rect x="3" y="7" width="18" height="13" rx="2"/><path d="M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M3 13h18"/>',
@@ -437,7 +437,7 @@ function vJobs(){
   if(f==='upcoming')js=js.filter(j=>jobEnd(j)>=t&&j.status!=='cancelled');
   else if(f==='unpaid')js=js.filter(j=>j.invoice&&totals(j).balance>0);
   else if(f!=='all')js=js.filter(j=>j.status===f);
-  if(q)js=js.filter(j=>[j.title,j.engineer,j.role,j.venue,j.address,j.po,j.notes,client(j.clientId)?.name,j.invoice?.no].join(' ').toLowerCase().includes(q));
+  if(q)js=js.filter(j=>[j.title,j.engineer,j.role,j.venue,j.address,j.po,j.notes,client(j.clientId)?.name,j.invoice?.no,j.quote?.no].join(' ').toLowerCase().includes(q));
   if(f!=='upcoming')js.reverse();
   const groups=[];js.forEach(j=>{const k=(j.start||'').slice(0,7);let g=groups[groups.length-1];if(!g||g.k!==k)groups.push(g={k,js:[]});g.js.push(j)});
   return `<div class="toolbar"><input class="search" id="jobSearch" type="search" placeholder="Search jobs, clients, engineers, venues" value="${esc(S.search)}" aria-label="Search jobs"></div>
@@ -546,6 +546,7 @@ function vMore(){
     <label class="switch"><span>Registered for VAT<br><small class="hint">Adds VAT and titles invoices “Tax invoice”, as SARS requires</small></span><input type="checkbox" name="gstRegistered" id="set-gst" ${s.gstRegistered?'checked':''}></label>
     <div class="grid3">${fld('gstRate','VAT %','number','step="0.1" min="0"')}${fld('termsDays','Payment terms (days)','number','min="0"')}<label class="field"><span>Currency</span><select name="currency" id="set-currency">${curOptions(s.currency||'AUD')}</select></label></div>
     <div class="grid3">${fld('invoicePrefix','Invoice prefix')}${fld('nextInvoiceNo','Next invoice no.','number','min="1"')}${fld('defaultRate','Default day rate','number','step="0.01" min="0"')}</div>
+    <div class="grid3">${fld('quotePrefix','Quote prefix')}${fld('nextQuoteNo','Next quote no.','number','min="1"')}${fld('quoteValidDays','Quotes valid for (days)','number','min="1"')}</div>
     <div class="grid2">${fld('travelRate','Travel rate per km','number','step="0.01" min="0"')}${fld('timeZone','Calendar time zone')}</div>
     <label class="field"><span>Note printed on invoices</span><textarea name="invoiceNotes" id="set-notes" rows="2">${esc(s.invoiceNotes)}</textarea></label>
     <h2 class="sec">How clients pay you</h2>
@@ -591,6 +592,7 @@ function openJob(id,refresh){
       <button class="btn sm" data-act="syncCal" data-id="${j.id}" ${S.mcp?'':'disabled'}>${j.calEventId?'Update calendar':'Add to Google Calendar'}</button></div></div>
     <div class="card"><h2 class="sec">Charges</h2>${(j.items||[]).length?`<div class="tscroll"><table class="t"><thead><tr><th>Item</th><th class="r">Qty</th><th class="r">Rate</th><th class="r">Amount</th></tr></thead><tbody>${j.items.map(i=>`<tr><td>${esc(i.desc)}</td><td class="r">${esc(i.qty)} ${esc(i.unit)}</td><td class="r">${money(i.rate)}</td><td class="r">${money((+i.qty||0)*(+i.rate||0))}</td></tr>`).join('')}</tbody></table></div>`:'<span class="hint">No charges yet. Tap Edit to add your rates.</span>'}
       <div class="totals"><span>Subtotal</span><span class="num">${money(t.sub)}</span>${j.gst?`<span>VAT ${t.rate}%</span><span class="num">${money(t.gst)}</span>`:''}<span class="grand">Total</span><span class="num grand">${money(t.total)}</span>${t.paid?`<span>Paid</span><span class="num">−${money(t.paid)}</span><span class="grand">Balance due</span><span class="num grand">${money(t.balance)}</span>`:''}</div></div>
+    ${quoteBlock(j,t)}
     ${invoiceBlock(j,t,ps)}
     <div class="card" id="payCard"><div class="row"><h2 class="sec spacer">Payments</h2>${t.balance>0||!t.total?`<button class="btn sm" data-act="showPay">Record payment</button>`:''}</div>
       <form data-form="payment" data-id="${j.id}" id="payForm" hidden class="card" style="background:var(--bg)">
@@ -603,6 +605,22 @@ function openJob(id,refresh){
   </div>`);
   if(refresh){const nb=$('#sheetCard .sheet-body');if(nb)nb.scrollTop=scroll}
 }
+function quoteBlock(j,t){
+  const s=S.settings,q=j.quote;
+  if(!q)return `<div class="card"><div class="row"><span class="spacer" style="min-width:160px"><b>Quote</b><br><small class="hint">Creates quote ${esc(s.quotePrefix)}${esc(s.nextQuoteNo)}, valid for ${esc(s.quoteValidDays)} days. Nothing is sent yet.</small></span><button class="btn sm" data-act="makeQuote" data-id="${j.id}" ${t.total>0?'':'disabled'}>Create quote</button></div>${t.total>0?'':'<span class="hint">Add charges first.</span>'}</div>`;
+  const exp=q.validUntil&&q.validUntil<today()&&!q.acceptedAt;
+  const pill=q.acceptedAt?'<span class="pill pp-paid">Accepted</span>':exp?'<span class="pill pp-overdue">Expired</span>':q.sentAt?'<span class="pill pp-sent">Quoted</span>':'<span class="pill pp-draft">Quote not sent</span>';
+  return `<div class="card"><div class="row"><h2 class="sec spacer">Quote ${esc(q.no)}</h2>${pill}</div>
+    <div class="grid2"><label class="field"><span>Quote date</span><input type="date" id="quo-issued" data-act-change="invDate" data-doc="quote" data-k="issued" data-id="${j.id}" value="${esc(q.issued)}"></label><label class="field"><span>Valid until</span><input type="date" id="quo-valid" data-act-change="invDate" data-doc="quote" data-k="validUntil" data-id="${j.id}" value="${esc(q.validUntil)}"></label></div>
+    <span class="hint">${q.sentAt?`Sent ${new Date(q.sentAt).toLocaleString('en-ZA',{day:'numeric',month:'short',hour:'numeric',minute:'2-digit'})}${q.sentTo?' to '+esc(q.sentTo):''}`:'Not sent yet'}${q.acceptedAt?` · accepted ${fmtD(iso(new Date(q.acceptedAt)))}`:''} · Uses this job's current charges, ${money(t.total)}.</span>
+    <div class="row">
+      <button class="btn ${q.sentAt?'':'primary'}" data-act="emailQuote" data-id="${j.id}" ${S.mcp?'':'disabled'}>${q.sentAt?'Resend quote':'Email quote'}</button>
+      <button class="btn" data-act="sharePdf" data-k="quote" data-id="${j.id}">Share PDF</button>
+      <button class="btn" data-act="pdfInv" data-k="quote" data-id="${j.id}">Save PDF</button>
+      ${q.sentAt?'':`<button class="btn" data-act="markQuoteSent" data-id="${j.id}">Mark as sent</button>`}
+      ${q.acceptedAt?'':`<button class="btn" data-act="acceptQuote" data-id="${j.id}">Client accepted</button>`}
+    </div></div>`;
+}
 function invoiceBlock(j,t,ps){
   if(!j.invoice)return `<div class="card"><div class="row"><span class="spacer" style="min-width:160px"><b>Invoice</b><br><small class="hint">Creates invoice ${esc(S.settings.invoicePrefix)}${esc(S.settings.nextInvoiceNo)}, due in ${esc(S.settings.termsDays)} days. Nothing is sent yet.</small></span><button class="btn primary sm" data-act="makeInvoice" data-id="${j.id}" ${t.total>0?'':'disabled'}>Create invoice</button></div>${t.total>0?'':'<span class="hint">Add charges first.</span>'}</div>`;
   const i=j.invoice;
@@ -611,7 +629,8 @@ function invoiceBlock(j,t,ps){
     <span class="hint">${i.sentAt?`Sent ${new Date(i.sentAt).toLocaleString('en-ZA',{day:'numeric',month:'short',hour:'numeric',minute:'2-digit'})}${i.sentTo?' to '+esc(i.sentTo):''}`:'Not sent yet'}${(i.reminders||[]).length?` · ${i.reminders.length} reminder${i.reminders.length>1?'s':''} sent`:''}</span>
     <div class="row">
       <button class="btn primary" data-act="emailInv" data-id="${j.id}" ${S.mcp?'':'disabled'}>${ps==='overdue'||(i.sentAt&&t.balance>0)?'Send reminder':'Email invoice'}</button>
-      <button class="btn" data-act="pdfInv" data-id="${j.id}">Save PDF</button>
+      <button class="btn" data-act="sharePdf" data-k="invoice" data-id="${j.id}">Share PDF</button>
+      <button class="btn" data-act="pdfInv" data-k="invoice" data-id="${j.id}">Save PDF</button>
       ${i.sentAt?'':`<button class="btn" data-act="markSent" data-id="${j.id}">Mark as sent</button>`}
     </div></div>`;
 }
@@ -762,19 +781,19 @@ async function doSync(j,quiet){
 }
 
 /* invoice pdf */
-function buildPdf(j){
+function buildPdf(j,kind='invoice'){
   const {jsPDF}=window.jspdf;const doc=new jsPDF({unit:'mm',format:'a4'});
-  const s=S.settings,c=client(j.clientId)||{},t=totals(j),i=j.invoice,W=210,L=18,R=W-18;
+  const Q=kind==='quote',s=S.settings,c=client(j.clientId)||{},t=totals(j),i=Q?j.quote:j.invoice,W=210,L=18,R=W-18;
   const cur=v=>money(v).replace(/[\u00a0\u202f]/g,' ');
   let y=22;
   doc.setTextColor(20,26,42);doc.setFont('helvetica','bold');doc.setFontSize(18);doc.text(s.businessName||s.ownerName||'Your business',L,y);
-  doc.setFontSize(20);doc.text(s.gstRegistered?'TAX INVOICE':'INVOICE',R,y,{align:'right'});
+  doc.setFontSize(20);doc.text(Q?'QUOTATION':s.gstRegistered?'TAX INVOICE':'INVOICE',R,y,{align:'right'});
   doc.setFont('helvetica','normal');doc.setFontSize(9.5);doc.setTextColor(70,81,102);
   let ly=y+6;[s.businessName&&s.ownerName?s.ownerName:'',...(s.address||'').split('\n'),s.abn&&`VAT no. ${s.abn}`,s.regNo&&`Reg. no. ${s.regNo}`,s.email,s.phone].filter(Boolean).forEach(l=>{doc.text(String(l),L,ly);ly+=4.6});
-  let ry=y+7;[['Invoice no.',i.no],['Issued',fmtLong(i.issued)],['Due',fmtLong(i.due)],j.po&&['Your ref',j.po]].filter(Boolean).forEach(([k,v])=>{doc.setTextColor(118,130,151);doc.text(k,R-48,ry);doc.setTextColor(20,26,42);doc.text(String(v),R,ry,{align:'right'});ry+=5});
+  let ry=y+7;(Q?[['Quote no.',i.no],['Date',fmtLong(i.issued)],['Valid until',fmtLong(i.validUntil)],j.po&&['Your ref',j.po]]:[['Invoice no.',i.no],['Issued',fmtLong(i.issued)],['Due',fmtLong(i.due)],j.po&&['Your ref',j.po]]).filter(Boolean).forEach(([k,v])=>{doc.setTextColor(118,130,151);doc.text(k,R-48,ry);doc.setTextColor(20,26,42);doc.text(String(v),R,ry,{align:'right'});ry+=5});
   y=Math.max(ly,ry)+8;
   doc.setDrawColor(211,218,229);doc.line(L,y,R,y);y+=8;
-  doc.setFontSize(8.5);doc.setTextColor(118,130,151);doc.text('BILL TO',L,y);doc.text('JOB',110,y);y+=5;
+  doc.setFontSize(8.5);doc.setTextColor(118,130,151);doc.text(Q?'PREPARED FOR':'BILL TO',L,y);doc.text('JOB',110,y);y+=5;
   doc.setFontSize(10);doc.setTextColor(20,26,42);
   let by=y;[c.name,c.contact,...(c.address||'').split('\n'),c.abn&&`VAT no. ${c.abn}`,c.email].filter(Boolean).forEach(l=>{doc.text(String(l),L,by);by+=4.8});
   let jy=y;doc.splitTextToSize(j.title||'',R-110).forEach(l=>{doc.setFont('helvetica','bold');doc.text(l,110,jy);jy+=4.8});doc.setFont('helvetica','normal');
@@ -788,32 +807,33 @@ function buildPdf(j){
     y+=lines.length*5+2;doc.setDrawColor(232,236,243);doc.line(L,y-3,R,y-3)});
   y+=4;const tl=(k,v,b)=>{doc.setFont('helvetica',b?'bold':'normal');doc.text(k,150,y,{align:'right'});doc.text(v,R-2,y,{align:'right'});y+=6};
   tl('Subtotal',cur(t.sub));if(j.gst)tl(`VAT (${t.rate}%)`,cur(t.gst));tl(j.gst?'Total incl. VAT':'Total',cur(t.total),1);
-  if(t.paid){tl('Paid',`-${cur(t.paid)}`);tl('Balance due',cur(t.balance),1)}
+  if(!Q&&t.paid){tl('Paid',`-${cur(t.paid)}`);tl('Balance due',cur(t.balance),1)}
   if(!j.gst&&s.gstRegistered===false){doc.setFontSize(8.5);doc.setTextColor(118,130,151);doc.text('No VAT has been charged.',R-2,y,{align:'right'});y+=6}
   y+=6;if(y>240){doc.addPage();y=22}
-  doc.setFont('helvetica','bold');doc.setFontSize(10);doc.setTextColor(20,26,42);doc.text('How to pay',L,y);y+=5;doc.setFont('helvetica','normal');doc.setFontSize(9.5);doc.setTextColor(70,81,102);
-  [s.accountName&&`Account name: ${s.accountName}`,s.bankName&&`Bank: ${s.bankName}`,s.bsb&&`Branch code: ${s.bsb}`,s.accountNo&&`Account no.: ${s.accountNo}`,s.accountType&&`Account type: ${s.accountType}`,s.swift&&`SWIFT: ${s.swift}`,`Reference: ${i.no}`,`Please pay by ${fmtLong(i.due)}.`].filter(Boolean).forEach(l=>{doc.text(l,L,y);y+=4.6});
+  doc.setFont('helvetica','bold');doc.setFontSize(10);doc.setTextColor(20,26,42);doc.text(Q?'Accepting this quote':'How to pay',L,y);y+=5;doc.setFont('helvetica','normal');doc.setFontSize(9.5);doc.setTextColor(70,81,102);
+  (Q?[`This quote is valid until ${fmtLong(i.validUntil)}.`,`To accept, reply to this email or contact us quoting ${i.no}.`,`Dates are held as provisional until the quote is accepted.`,`Payment terms: ${s.termsDays} days from invoice.`]:[s.accountName&&`Account name: ${s.accountName}`,s.bankName&&`Bank: ${s.bankName}`,s.bsb&&`Branch code: ${s.bsb}`,s.accountNo&&`Account no.: ${s.accountNo}`,s.accountType&&`Account type: ${s.accountType}`,s.swift&&`SWIFT: ${s.swift}`,`Reference: ${i.no}`,`Please pay by ${fmtLong(i.due)}.`]).filter(Boolean).forEach(l=>{doc.text(l,L,y);y+=4.6});
   if(s.invoiceNotes){y+=4;doc.splitTextToSize(s.invoiceNotes,R-L).forEach(l=>{doc.text(l,L,y);y+=4.6})}
   return doc;
 }
-function invFileName(j){return `${j.invoice.no} ${(client(j.clientId)?.name||'invoice').replace(/[^\w\- ]+/g,'')}.pdf`}
-function openEmail(j){
-  const c=client(j.clientId)||{},t=totals(j),i=j.invoice,s=S.settings,rem=!!i.sentAt&&t.balance>0;
+function invFileName(j,kind){return `${(kind==='quote'?j.quote:j.invoice).no} ${(client(j.clientId)?.name||'invoice').replace(/[^\w\- ]+/g,'')}.pdf`}
+function openEmail(j,kind='invoice'){
+  const Q=kind==='quote',c=client(j.clientId)||{},t=totals(j),i=Q?j.quote:j.invoice,s=S.settings,rem=!Q&&!!i.sentAt&&t.balance>0;
   const who=s.ownerName||s.businessName||'';
-  const msg=rem?`Hi ${c.contact||c.name||''},\n\nA friendly reminder that invoice ${i.no} for ${j.title} (${fmtRange(j.start,jobEnd(j))}) has ${money(t.balance)} outstanding, due ${fmtLong(i.due)}. A copy is attached.\n\nIf you have already paid, thank you, please ignore this.\n\nKind regards,\n${who}`
+  const msg=Q?`Hi ${c.contact||c.name||''},\n\nThank you for the enquiry. Please find attached quote ${i.no} for ${j.title} (${fmtRange(j.start,jobEnd(j))}).\n\nTotal: ${money(t.total)}${j.gst?' incl. VAT':''}\nValid until: ${fmtLong(i.validUntil)}\n\nTo confirm the booking, simply reply to this email.\n\nKind regards,\n${who}`
+    :rem?`Hi ${c.contact||c.name||''},\n\nA friendly reminder that invoice ${i.no} for ${j.title} (${fmtRange(j.start,jobEnd(j))}) has ${money(t.balance)} outstanding, due ${fmtLong(i.due)}. A copy is attached.\n\nIf you have already paid, thank you, please ignore this.\n\nKind regards,\n${who}`
     :`Hi ${c.contact||c.name||''},\n\nPlease find attached invoice ${i.no} for ${j.title} (${fmtRange(j.start,jobEnd(j))}).\n\nAmount due: ${money(t.balance)}\nDue date: ${fmtLong(i.due)}\n\nPayment details are on the invoice. Please use ${i.no} as the reference.\n\nThanks,\n${who}`;
-  openSheet('email',head(rem?'Payment reminder':'Email invoice')+`<div class="sheet-body"><form id="emailForm" data-form="email" data-id="${j.id}" data-rem="${rem?1:''}" class="card">
+  openSheet('email',head(Q?'Email quote':rem?'Payment reminder':'Email invoice')+`<div class="sheet-body"><form id="emailForm" data-form="email" data-id="${j.id}" data-kind="${kind}" data-rem="${rem?1:''}" class="card">
     <label class="field"><span>To</span><input name="to" id="em-to" type="email" required value="${esc(c.email||'')}" placeholder="client@example.com"></label>
     <label class="field"><span>CC (optional)</span><input name="cc" id="em-cc" type="email"></label>
-    <label class="field"><span>Subject</span><input name="subject" id="em-subject" required value="${esc(`${rem?'Reminder: ':''}Invoice ${i.no} – ${j.title}`)}"></label>
+    <label class="field"><span>Subject</span><input name="subject" id="em-subject" required value="${esc(Q?`Quote ${i.no} – ${j.title}`:`${rem?'Reminder: ':''}Invoice ${i.no} – ${j.title}`)}"></label>
     <label class="field"><span>Message</span><textarea name="body" id="em-body" rows="11">${esc(msg)}</textarea></label>
-    <span class="hint">Attached: ${esc(invFileName(j))} · ${money(t.balance)} due. Sends from your Gmail.</span>
+    <span class="hint">Attached: ${esc(invFileName(j,kind))} · ${Q?money(t.total)+' quoted':money(t.balance)+' due'}. Sends from your Gmail.</span>
   </form></div><div class="sheet-foot"><button class="btn" data-act="emailDraft" data-id="${j.id}">Save to Gmail drafts</button><button class="btn primary" type="submit" form="emailForm" id="sendBtn">Send now</button></div>`);
 }
 function emailPayload(j,fm){
-  const doc=buildPdf(j),b64=doc.output('datauristring').split(',')[1];
+  const kind=fm.dataset.kind||'invoice',doc=buildPdf(j,kind),b64=doc.output('datauristring').split(',')[1];
   const body=fm.elements.body.value,html=`<div style="font-family:Arial,sans-serif;font-size:14px;line-height:1.5;color:#131A2A">${body.split(/\n\n+/).map(p=>`<p>${esc(p).replace(/\n/g,'<br>')}</p>`).join('')}</div>`;
-  const p={to:[fm.elements.to.value.trim()],subject:fm.elements.subject.value.trim(),body,htmlBody:html,attachments:[{content:b64,filename:invFileName(j),mimeType:'application/pdf'}]};
+  const p={to:[fm.elements.to.value.trim()],subject:fm.elements.subject.value.trim(),body,htmlBody:html,attachments:[{content:b64,filename:invFileName(j,kind),mimeType:'application/pdf'}]};
   const cc=fm.elements.cc.value.trim();if(cc)p.cc=[cc];return p;
 }
 async function busy(btn,fn){if(!btn)return fn();const old=btn.innerHTML;btn.disabled=true;btn.innerHTML='<span class="spin"></span>';try{return await fn()}finally{if(btn.isConnected){btn.disabled=false;btn.innerHTML=old}}}
@@ -831,7 +851,7 @@ const ACT={
   newJob:d=>{const j=blankJob(d.date);if(d.client)j.clientId=d.client;openJobForm(j)},
   openJob:d=>openJob(d.id),
   editJob:d=>{const j=S.jobs.find(x=>x.id===d.id);if(j)openJobForm(j)},
-  dupJob:d=>{const j=clone(S.jobs.find(x=>x.id===d.id));Object.assign(j,{id:newId(),status:'heavy',invoice:null,payments:[],calEventId:null,calSyncedAt:null,example:false,createdAt:Date.now(),_new:true});delete j.invoice;openJobForm(j)},
+  dupJob:d=>{const j=clone(S.jobs.find(x=>x.id===d.id));Object.assign(j,{id:newId(),status:'heavy',invoice:null,quote:null,payments:[],calEventId:null,calSyncedAt:null,example:false,createdAt:Date.now(),_new:true});delete j.invoice;delete j.quote;openJobForm(j)},
   closeSheet:()=>closeSheet(),
   copy:d=>copyText(d.t),
   jobFilter:d=>{S.jobFilter=d.v;render()},
@@ -848,7 +868,18 @@ const ACT={
     j.invoice={no,issued:today(),due:addDays(today(),+s.termsDays||0),gstRate:+s.gstRate||0,sentAt:null,reminders:[]};
     await busy(b,async()=>{await store.saveSettings({nextInvoiceNo:(+s.nextInvoiceNo||0)+1});await store.saveJob(j)});toast(`Invoice ${no} created`)},
   markSent:async d=>{const j=clone(S.jobs.find(x=>x.id===d.id));j.invoice.sentAt=Date.now();await store.saveJob(j);toast('Marked as sent')},
-  pdfInv:async d=>{const j=S.jobs.find(x=>x.id===d.id);if(!window.jspdf){toast('The PDF maker did not load. Reload and try again.',1);return}await saveFile(invFileName(j),buildPdf(j).output('blob'))},
+  pdfInv:async d=>{const j=S.jobs.find(x=>x.id===d.id),k=d.k||'invoice';if(!window.jspdf){toast('The PDF maker did not load. Reload and try again.',1);return}await saveFile(invFileName(j,k),buildPdf(j,k).output('blob'))},
+  sharePdf:async d=>{const j=S.jobs.find(x=>x.id===d.id),k=d.k||'invoice';if(!window.jspdf){toast('The PDF maker did not load. Reload and try again.',1);return}
+    const name=invFileName(j,k),blob=buildPdf(j,k).output('blob');let file=null;try{file=new File([blob],name,{type:'application/pdf'})}catch{}
+    if(file&&navigator.canShare&&navigator.canShare({files:[file]})){try{await navigator.share({files:[file],title:name.replace(/\.pdf$/,'')});return}catch(e){if(e?.name==='AbortError')return}}
+    toast('Sharing is not available here, so the PDF is being saved instead.');await saveFile(name,blob)},
+  makeQuote:async(d,b)=>{const j=clone(S.jobs.find(x=>x.id===d.id)),s=S.settings,no=`${s.quotePrefix||''}${s.nextQuoteNo||1001}`;
+    j.quote={no,issued:today(),validUntil:addDays(today(),+s.quoteValidDays||30),sentAt:null};
+    await busy(b,async()=>{await store.saveSettings({nextQuoteNo:(+s.nextQuoteNo||1001)+1});await store.saveJob(j)});toast(`Quote ${no} created`)},
+  emailQuote:d=>{const j=S.jobs.find(x=>x.id===d.id);if(!window.jspdf){toast('The PDF maker did not load. Reload and try again.',1);return}openEmail(j,'quote')},
+  markQuoteSent:async d=>{const j=clone(S.jobs.find(x=>x.id===d.id));j.quote.sentAt=Date.now();await store.saveJob(j);toast('Quote marked as sent')},
+  acceptQuote:async d=>{const j=clone(S.jobs.find(x=>x.id===d.id));j.quote.acceptedAt=Date.now();const up=['heavy','blocked'].includes(j.status);if(up)j.status='confirmed';
+    await store.saveJob(j);toast(up?'Quote accepted. Booking confirmed.':'Quote accepted');if(up&&j.calEventId&&S.mcp)doSync(j,true)},
   emailInv:d=>{const j=S.jobs.find(x=>x.id===d.id);if(!window.jspdf){toast('The PDF maker did not load. Reload and try again.',1);return}openEmail(j)},
   emailDraft:async(d,b)=>{const fm=$('#emailForm');if(!fm.reportValidity())return;const j=S.jobs.find(x=>x.id===d.id);
     await busy(b,async()=>{try{const r=await S.mcp.callTool('Gmail','create_draft',emailPayload(j,fm));const url=r.payload?.viewUrl;
@@ -892,7 +923,7 @@ document.addEventListener('change',async e=>{
   if(t.id==='curSel'){const old=S.settings.currency;try{await store.saveSettings({currency:t.value});toast(`Currency set to ${t.value}`)}catch{t.value=old}return}
   if(t.id==='jf-gst'&&S.draft){S.draft.gst=t.checked;renderDraftTotals()}
   if(t.id==='jf-clientId'){$('#newClientBox').hidden=t.value!=='__new';if(t.value==='__new')$('#jf-ncName').focus()}
-  if(t.dataset.actChange==='invDate'&&t.value){const j=clone(S.jobs.find(x=>x.id===t.dataset.id));j.invoice[t.dataset.k]=t.value;await store.saveJob(j);toast('Invoice date saved')}
+  if(t.dataset.actChange==='invDate'&&t.value){const j=clone(S.jobs.find(x=>x.id===t.dataset.id)),doc=t.dataset.doc||'invoice';j[doc][t.dataset.k]=t.value;await store.saveJob(j);toast(doc==='quote'?'Quote date saved':'Invoice date saved')}
 });
 document.addEventListener('submit',async e=>{
   const fm=e.target,kind=fm.dataset.form;if(!kind)return;e.preventDefault();
@@ -924,8 +955,8 @@ document.addEventListener('submit',async e=>{
     const j=S.jobs.find(x=>x.id===fm.dataset.id),rem=!!fm.dataset.rem,btn=$('#sendBtn');
     await busy(btn,async()=>{try{await S.mcp.callTool('Gmail','send_message',emailPayload(j,fm));
       const fresh=clone(S.jobs.find(x=>x.id===j.id));const to=fm.elements.to.value.trim();
-      if(rem){fresh.invoice.reminders=[...(fresh.invoice.reminders||[]),Date.now()]}else{fresh.invoice.sentAt=Date.now();fresh.invoice.sentTo=to}
-      await store.saveJob(fresh);toast(`${rem?'Reminder':'Invoice'} sent to ${to}`);openJob(j.id)}
+      if(fm.dataset.kind==='quote'){fresh.quote.sentAt=Date.now();fresh.quote.sentTo=to}else if(rem){fresh.invoice.reminders=[...(fresh.invoice.reminders||[]),Date.now()]}else{fresh.invoice.sentAt=Date.now();fresh.invoice.sentTo=to}
+      await store.saveJob(fresh);toast(`${fm.dataset.kind==='quote'?'Quote':rem?'Reminder':'Invoice'} sent to ${to}`);openJob(j.id)}
       catch(err){toast(mcpMsg(err,'Gmail'),1)}});
   }}catch(err){console.error(err)}finally{btns.forEach(b=>{if(b.isConnected)b.disabled=false})}
 });
