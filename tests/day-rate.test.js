@@ -1,0 +1,15 @@
+const {chromium}=require('playwright');
+(async()=>{const b=await chromium.launch();const p=await b.newPage();
+p.on('pageerror',e=>console.log('ERR',e.message));
+await p.route(/cdnjs|fonts/,r=>r.abort());
+await p.goto('file://'+process.argv[2]);await p.waitForTimeout(300);
+await p.evaluate(()=>{S.settings.defaultRate=3500});
+await p.click('[data-act=newJob]');
+const q=()=>p.evaluate(()=>[S.draft.items.map(i=>i.qty+'/'+i.auto).join(','),$('#dayHint').textContent,$('#jfTotals').textContent]);
+console.log(await q());
+await p.fill('#jf-start','2026-11-02');await p.fill('#jf-end','2026-11-05');console.log(await q());
+await p.click('[data-act=addItem][data-d=Overtime]');console.log(await q());
+await p.fill('#it-q-0','2');console.log(await q());
+await p.click('[data-act=matchDays]');console.log(await q());
+await p.fill('#jf-end','2026-11-03');console.log(await q());
+await b.close()})();

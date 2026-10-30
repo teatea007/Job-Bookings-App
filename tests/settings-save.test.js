@@ -1,0 +1,10 @@
+const {chromium}=require('playwright');
+(async()=>{const b=await chromium.launch();const p=await b.newPage();
+p.on('pageerror',e=>console.log('ERR',e.message));
+await p.route(/cdnjs|fonts/,r=>r.abort());
+await p.goto('file://'+process.argv[2]);await p.waitForTimeout(300);
+await p.click('[data-act=tab][data-v=more]');
+await p.fill('#set-businessName','Test Co');
+await p.click('form[data-form=settings] button[type=submit]');await p.waitForTimeout(200);
+console.log('saved name:',await p.evaluate(()=>S.settings.businessName),'toast:',await p.textContent('#toast'));
+await b.close()})();
