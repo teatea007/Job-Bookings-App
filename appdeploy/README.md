@@ -1,4 +1,7 @@
-# My Booking 360 — AppDeploy version (not deployed yet)
+# My Booking 360 — AppDeploy version
+
+Live: https://my-booking-360-omjnqe.v2.appdeploy.ai/ (AppDeploy app id `my-booking-360-omjnqe`).
+AppDeploy keeps its own copy of the source; it may differ slightly in formatting from these files.
 
 A standalone version of the app for AppDeploy, with its own sign-in and database instead of Claude storage.
 
