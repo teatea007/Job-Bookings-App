@@ -1,0 +1,13 @@
+{
+  "headline": "My Booking 360",
+  "subtitle": "Sign in to your bookings, quotes and invoices",
+  "style": {
+    "mode": "light",
+    "accentColor": "#0B7F7A",
+    "backgroundColor": "#FFF6EE",
+    "panelColor": "#FFFFFF",
+    "textColor": "#2B1D30",
+    "fontFamily": "Archivo, system-ui, sans-serif",
+    "borderRadius": 16
+  }
+}

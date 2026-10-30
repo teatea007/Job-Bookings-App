@@ -1,0 +1,861 @@
+import { api, auth } from '@appdeploy/client';
+import { Chart, registerables } from 'chart.js';
+import { jsPDF } from 'jspdf';
+
+// The app code below was written against globals; expose the bundled libraries the same way.
+Chart.register(...registerables);
+window.Chart = Chart;
+window.jspdf = { jsPDF };
+
+/* ---------- constants ---------- */
+const STATUSES=[
+  {k:'blocked',label:'Blocked off',gcal:'3'},
+  {k:'heavy',label:'Heavy pencil',gcal:'5'},
+  {k:'confirmed',label:'Confirmed',gcal:'10'},
+  {k:'completed',label:'Completed',gcal:'9'},
+  {k:'notdone',label:'Not completed',gcal:'11'},
+  {k:'cancelled',label:'Cancelled',gcal:'8'},
+];
+const ST=Object.fromEntries(STATUSES.map(s=>[s.k,s]));
+const UNITS=['day','half day','hour','item','km','flat'];
+const CURRENCIES=[['ZAR','South African rand'],['BWP','Botswana pula'],['NAD','Namibian dollar'],['KES','Kenyan shilling'],['MUR','Mauritian rupee'],['AUD','Australian dollar'],['NZD','New Zealand dollar'],['USD','US dollar'],['GBP','British pound'],['EUR','Euro'],['CAD','Canadian dollar'],['SGD','Singapore dollar'],['HKD','Hong Kong dollar'],['AED','UAE dirham'],['INR','Indian rupee'],['JPY','Japanese yen']];
+const curOptions=sel=>{const list=CURRENCIES.some(c=>c[0]===sel)?CURRENCIES:[[sel,sel],...CURRENCIES];return list.map(([k,n])=>`<option value="${esc(k)}" ${k===sel?'selected':''}>${esc(k)} · ${esc(n)}</option>`).join('')};
+const METHODS=['EFT','Instant EFT / PayShap','Card','Cash','SnapScan / Zapper','Other'];
+const DEFAULTS={businessName:'',ownerName:'',abn:'',email:'',phone:'',address:'',gstRegistered:true,gstRate:15,currency:'ZAR',
+  termsDays:30,invoicePrefix:'INV-',nextInvoiceNo:1001,bankName:'',accountName:'',bsb:'',accountNo:'',accountType:'',swift:'',regNo:'',travelRate:4.76,timeZone:'Africa/Johannesburg',region:'ZA',
+  invoiceNotes:'Thank you for your business.',quotePrefix:'QUO-',nextQuoteNo:1001,quoteValidDays:30,defaultRate:0,defaultUnit:'day',crew:'',autoSync:true};
+const TABS=[['home','Home'],['jobs','Jobs'],['cal','Calendar'],['clients','Clients'],['money','Money'],['more','Settings']];
+
+/* ---------- state ---------- */
+const S={mode:'loading',db:null,mcp:null,dl:null,settings:{...DEFAULTS},clients:[],jobs:[],
+  view:'home',jobFilter:'upcoming',search:'',clientSearch:'',calMonth:null,calSel:null,draft:null,openJobId:null,charts:[]};
+
+/* ---------- utils ---------- */
+const $=(s,el=document)=>el.querySelector(s);
+const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const pd=s=>{if(!s)return null;const[y,m,d]=s.split('-').map(Number);return new Date(y,m-1,d)};
+const iso=d=>`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+const today=()=>iso(new Date());
+const addDays=(s,n)=>{const d=pd(s);d.setDate(d.getDate()+n);return iso(d)};
+const fmtD=(s,o={weekday:'short',day:'numeric',month:'short'})=>s?pd(s).toLocaleDateString('en-ZA',o):'';
+const fmtRange=(a,b)=>!b||a===b?fmtD(a):`${fmtD(a)} – ${fmtD(b)}`;
+const fmtLong=s=>fmtD(s,{day:'numeric',month:'long',year:'numeric'});
+const money=n=>{try{return new Intl.NumberFormat('en-ZA',{style:'currency',currency:S.settings.currency||'ZAR'}).format(n||0)}catch{return 'R '+(+n||0).toFixed(2)}};
+const moneyShort=n=>{try{return new Intl.NumberFormat('en-ZA',{style:'currency',currency:S.settings.currency||'ZAR',notation:'compact',maximumFractionDigits:1}).format(n||0)}catch{return String(n)}};
+const newId=()=>Math.random().toString(36).slice(2,9)+Date.now().toString(36).slice(-5);
+const r2=n=>Math.round((+n||0)*100)/100;
+const clone=o=>JSON.parse(JSON.stringify(o));
+const client=id=>S.clients.find(c=>c.id===id);
+const jobEnd=j=>j.end||j.start;
+const initials=n=>(n||'?').split(/\s+/).filter(Boolean).slice(0,2).map(w=>w[0]).join('').toUpperCase();
+const daysBetween=(a,b)=>Math.round((pd(b)-pd(a))/864e5);
+const bookDays=d=>d.start?Math.max(1,daysBetween(d.start,d.end&&d.end>d.start?d.end:d.start)+1):1;
+
+function totals(j){
+  const sub=r2((j.items||[]).reduce((a,i)=>a+(+i.qty||0)*(+i.rate||0),0));
+  const rate=j.invoice?.gstRate ?? (+S.settings.gstRate||0);
+  const gst=j.gst?r2(sub*rate/100):0;
+  const total=r2(sub+gst);
+  const paid=r2((j.payments||[]).reduce((a,p)=>a+(+p.amount||0),0));
+  return {sub,gst,total,paid,balance:r2(total-paid),rate};
+}
+function payState(j){
+  if(!j.invoice)return null;
+  const t=totals(j);
+  if(t.total>0&&t.balance<=0)return 'paid';
+  if(j.invoice.due&&j.invoice.due<today())return 'overdue';
+  if(t.paid>0)return 'part';
+  return j.invoice.sentAt?'sent':'draft';
+}
+const PAYLBL={paid:'Paid',overdue:'Overdue',part:'Part paid',sent:'Invoiced',draft:'Invoice not sent'};
+const stPill=k=>`<span class="sbadge st-${k}">${esc(ST[k]?.label||k)}</span>`;
+const payPill=p=>p?`<span class="sbadge pp-${p}">${PAYLBL[p]}</span>`:'';
+
+function toast(msg,err){const t=$('#toast');t.textContent=msg;t.className='toast'+(err?' err':'');t.hidden=false;clearTimeout(toast._t);toast._t=setTimeout(()=>t.hidden=true,err?6000:3200)}
+async function copyText(txt){try{await navigator.clipboard.writeText(txt);toast('Copied')}catch{toast('Copy not available here — press and hold to select it')}}
+
+/* ---------- data layer ---------- */
+function withRegion(d){const s={...DEFAULTS,...d};if(!d.region){s.currency='ZAR';s.gstRate=15;s.region='ZA';s.timeZone=s.timeZone||'Africa/Johannesburg'}return s}
+function upsertLocal(arr,obj){const i=arr.findIndex(x=>x.id===obj.id);if(i>=0)arr[i]=obj;else arr.push(obj)}
+function sortClients(){S.clients.sort((a,b)=>(a.name||'').localeCompare(b.name||''))}
+const httpStatus=e=>e?.response?.status??e?.status;
+function apiErr(e){
+  const st=httpStatus(e);
+  if(st===401){toast('You have been signed out. Sign in again.',1);closeSheet();S.mode='signin';render()}
+  else if(st===429)toast('Too many changes at once. Wait a minute and try again.',1);
+  else if(st===413)toast('That record is too large to save.',1);
+  else toast('Could not save. Check your connection and try again.',1);
+  throw e;
+}
+const store={
+  async saveJob(j){j.updatedAt=Date.now();const x=clone(j);try{await api.put('/api/jobs/'+encodeURIComponent(x.id),x)}catch(e){apiErr(e)}upsertLocal(S.jobs,x);sortJobs();render()},
+  async deleteJob(id){try{await api.delete('/api/jobs/'+encodeURIComponent(id))}catch(e){apiErr(e)}S.jobs=S.jobs.filter(j=>j.id!==id);render()},
+  async saveClient(c){c.updatedAt=Date.now();const x=clone(c);try{await api.put('/api/clients/'+encodeURIComponent(x.id),x)}catch(e){apiErr(e)}upsertLocal(S.clients,x);sortClients();render()},
+  async deleteClient(id){try{await api.delete('/api/clients/'+encodeURIComponent(id))}catch(e){apiErr(e)}S.clients=S.clients.filter(c=>c.id!==id);render()},
+  async saveSettings(s){const next={...S.settings,...s};try{await api.put('/api/settings',next)}catch(e){apiErr(e)}S.settings=next;render()}
+};
+function sortJobs(){S.jobs.sort((a,b)=>(a.start||'').localeCompare(b.start||'')||(a.callTime||'').localeCompare(b.callTime||''))}
+async function loadAll(kind){
+  const out=[];let next=null;
+  for(let i=0;i<40;i++){const r=await api.get(`/api/${kind}`+(next?`?next=${encodeURIComponent(next)}`:''));out.push(...(r.data?.items||[]));next=r.data?.next;if(!next)break}
+  return out;
+}
+async function loadData(){
+  const [st,clients,jobs]=await Promise.all([api.get('/api/settings'),loadAll('clients'),loadAll('jobs')]);
+  const saved=st.data?.settings;
+  S.settings=withRegion(saved||{});
+  if(!saved){if(S.user?.name&&!S.settings.ownerName)S.settings.ownerName=S.user.name;if(S.user?.email&&!S.settings.email)S.settings.email=S.user.email}
+  S.clients=clients;sortClients();S.jobs=jobs;sortJobs();
+}
+async function boot(){
+  const now=new Date();S.calMonth=iso(new Date(now.getFullYear(),now.getMonth(),1));S.calSel=today();
+  renderTabs();render();
+  let user=null;try{user=await auth.getUser()}catch(e){console.warn(e)}
+  if(!user){S.mode='signin';render();return}
+  S.user=user;
+  try{await loadData();S.mode='live';S.loaded=true}catch(e){console.error(e);S.mode=httpStatus(e)===401?'signin':'error'}
+  render();
+}
+const signInView=()=>`<div class="signin"><span class="mark">360</span><h1>My Booking 360</h1><p>Bookings, quotes, invoices and payments for engineers and techs, in one place.</p><button class="btn primary" data-act="signIn">Sign in</button><span class="hint">Use Google, Apple or a one-time email link. Your bookings are private to your account.</span></div>`;
+
+/* ---------- icons ---------- */
+const st_=p=>`<g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${p}</g>`;
+const IC={
+  home:'<path fill="currentColor" d="M12 3.2 2.7 10.5a1 1 0 0 0 .6 1.8H5V20a1 1 0 0 0 1 1h4v-6h4v6h4a1 1 0 0 0 1-1v-7.7h1.7a1 1 0 0 0 .6-1.8z"/>',
+  jobs:'<path fill="currentColor" d="M9 3h6a2 2 0 0 1 2 2v2h3a2 2 0 0 1 2 2v3.5H2V9a2 2 0 0 1 2-2h3V5a2 2 0 0 1 2-2zm0 2v2h6V5zM2 14h8v1.5h4V14h8v5a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2z"/>',
+  cal:'<path fill="currentColor" d="M7 2h2v2h6V2h2v2h2a2 2 0 0 1 2 2v13a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2zM5 9v10h14V9zm2 2h2v2H7zm4 0h2v2h-2zm4 0h2v2h-2zm-8 4h2v2H7zm4 0h2v2h-2zm4 0h2v2h-2z"/>',
+  clients:'<path fill="currentColor" d="M12 4a3.5 3.5 0 1 1 0 7 3.5 3.5 0 0 1 0-7zM5.5 6a2.5 2.5 0 1 1 0 5 2.5 2.5 0 0 1 0-5zm13 0a2.5 2.5 0 1 1 0 5 2.5 2.5 0 0 1 0-5zM12 12.5c3.6 0 6 1.9 6 4.5v2H6v-2c0-2.6 2.4-4.5 6-4.5zM5 13c.5 0 1 .05 1.4.15A5.3 5.3 0 0 0 4.5 17v2H1v-1.8C1 14.8 2.7 13 5 13zm14 0c2.3 0 4 1.8 4 4.2V19h-3.5v-2a5.3 5.3 0 0 0-1.9-3.85c.4-.1.9-.15 1.4-.15z"/>',
+  money:'<path fill="currentColor" d="M4 5h14a2 2 0 0 1 2 2v1h-5a4 4 0 0 0 0 8h5v1a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2zm11 5h7v4h-7a2 2 0 0 1 0-4zm0 1.2a.8.8 0 1 0 0 1.6.8.8 0 0 0 0-1.6z"/>',
+  more:'<path fill="currentColor" fill-rule="evenodd" d="M10.3 2h3.4l.5 2.6c.6.2 1.2.5 1.7.9l2.5-.9 1.7 2.9-2 1.7a7 7 0 0 1 0 1.9l2 1.7-1.7 2.9-2.5-.9c-.5.4-1.1.7-1.7.9l-.5 2.6h-3.4l-.5-2.6a7 7 0 0 1-1.7-.9l-2.5.9-1.7-2.9 2-1.7a7 7 0 0 1 0-1.9l-2-1.7 1.7-2.9 2.5.9c.5-.4 1.1-.7 1.7-.9zM12 8.6a2.9 2.9 0 1 0 0 5.8 2.9 2.9 0 0 0 0-5.8z" transform="translate(0 .5)"/>',
+  phone:'<path fill="currentColor" d="M6.6 10.8a15.1 15.1 0 0 0 6.6 6.6l2.2-2.2a1 1 0 0 1 1-.25c1.1.37 2.3.57 3.6.57a1 1 0 0 1 1 1V20a1 1 0 0 1-1 1A17 17 0 0 1 3 4a1 1 0 0 1 1-1h3.5a1 1 0 0 1 1 1c0 1.25.2 2.45.57 3.6a1 1 0 0 1-.25 1z"/>',
+  wa:'<path fill="currentColor" d="M12 2a10 10 0 0 0-8.6 15.1L2 22l5-1.3A10 10 0 1 0 12 2zm0 1.8a8.2 8.2 0 1 1-4.2 15.2l-.3-.2-3 .8.8-2.9-.2-.3A8.2 8.2 0 0 1 12 3.8zm-3.3 4.4c-.2 0-.5 0-.7.3-.3.3-1 .9-1 2.3s1 2.7 1.2 2.9c.1.2 2 3.1 4.9 4.3 2.4.9 2.9.8 3.4.7.5-.1 1.7-.7 1.9-1.4.2-.7.2-1.2.2-1.4-.1-.1-.3-.2-.6-.3l-1.9-.9c-.3-.1-.5-.1-.7.1l-.9 1.1c-.2.2-.3.2-.6.1-.3-.1-1.2-.4-2.2-1.4-.8-.7-1.4-1.6-1.5-1.9-.2-.3 0-.4.1-.6l.4-.5.3-.5v-.5l-.9-2.1c-.2-.5-.4-.5-.6-.5z"/>',
+  mail:'<path fill="currentColor" d="M3 5h18a1 1 0 0 1 1 1v12a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1zm1.4 2 7.6 5.3L19.6 7zM4 9.2V17h16V9.2l-7.4 5.1a1 1 0 0 1-1.2 0z"/>',
+  dots:'<circle cx="5" cy="12" r="2" fill="currentColor"/><circle cx="12" cy="12" r="2" fill="currentColor"/><circle cx="19" cy="12" r="2" fill="currentColor"/>',
+  search:st_('<circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/>'),
+  clock:st_('<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>'),
+  pin:st_('<path d="M12 21s-7-6.2-7-11.5a7 7 0 0 1 14 0C19 14.8 12 21 12 21z"/><circle cx="12" cy="9.5" r="2.5"/>'),
+  date:st_('<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M16 3v4M8 3v4M3 10h18"/>'),
+  chev:st_('<path d="m9 6 6 6-6 6"/>'),
+  chevL:st_('<path d="m15 6-6 6 6 6"/>'),
+  back:st_('<path d="M19 12H5m6-6-6 6 6 6"/>'),
+  pdf:'<path fill="currentColor" d="M6 2h8l5 5v13a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2zm7 1.5V8h4.5z"/><text x="12" y="18.2" text-anchor="middle" font-family="Archivo,Arial,sans-serif" font-size="5.6" font-weight="800" fill="#fff">PDF</text>',
+  quote:st_('<path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5M9 12h6M9 16h6"/>'),
+  inv:st_('<path d="M6 3h12v18l-3-2-3 2-3-2-3 2z"/><path d="M9.5 8h5M9.5 12h5M9.5 16h3"/>'),
+  calplus:st_('<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M16 3v4M8 3v4M3 10h18M12 13v5M9.5 15.5h5"/>'),
+  userplus:st_('<circle cx="9" cy="8" r="4"/><path d="M2 21a7 7 0 0 1 14 0M19 8v6M16 11h6"/>'),
+  shield:st_('<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>'),
+  brief:st_('<rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/>'),
+  bank:st_('<path d="M3 21h18M5 18v-7M9.5 18v-7M14.5 18v-7M19 18v-7M2 9l10-6 10 6z"/>'),
+  tax:st_('<path d="M19 5 5 19"/><circle cx="7" cy="7" r="2.5"/><circle cx="17" cy="17" r="2.5"/>'),
+  sync:st_('<path d="M21 12a9 9 0 0 1-15.5 6.2L3 16M3 12a9 9 0 0 1 15.5-6.2L21 8"/><path d="M21 3v5h-5M3 21v-5h5"/>'),
+  plus:st_('<path d="M12 5v14M5 12h14"/>'),
+  x:st_('<path d="M18 6 6 18M6 6l12 12"/>'),
+  check:st_('<path d="M20 6 9 17l-5-5"/>'),
+  clash:st_('<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M16 3v4M8 3v4M3 10h18M10 13.5l4 4M14 13.5l-4 4"/>'),
+  edit:st_('<path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/>'),
+  copy:st_('<rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/>'),
+  trash:st_('<path d="M3 6h18M8 6V4h8v2M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>'),
+  share:st_('<path d="M12 3v13M7 8l5-5 5 5"/><path d="M5 14v5a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-5"/>'),
+};
+const ic=(n,cls='')=>`<svg class="ic ${cls}" viewBox="0 0 24 24" aria-hidden="true">${IC[n]||''}</svg>`;
+
+/* ---------- rendering ---------- */
+function renderTabs(){
+  $('#tabs').innerHTML=TABS.map(([k,l])=>`<button class="tab" data-act="tab" data-v="${k}" ${S.view===k?'aria-current="page"':''}>${ic(k)}${l}</button>`).join('');
+}
+function render(){
+  S.charts.forEach(c=>{try{c.destroy()}catch{}});S.charts=[];
+  const v=$('#view');
+  $('.tabs').hidden=S.mode!=='live';
+  if(S.mode==='signin'){v.innerHTML=signInView();return}
+  if(S.mode==='error'){v.innerHTML=`<div class="empty"><b>Could not load your bookings</b><span>Check your connection and try again.</span><button class="btn primary" data-act="reload">Try again</button></div>`;return}
+  if(S.mode==='loading'){v.innerHTML=`<div class="empty"><div class="spin"></div><span>Loading your bookings…</span></div>`;return}
+  if(S.mode==='notowner'){v.innerHTML=`<div class="empty"><b>This booking book is private</b><span>Only its owner can see and change the bookings, clients and invoices in My Booking 360.</span></div>`;return}
+  const views={home:vHome,jobs:vJobs,cal:vCal,clients:vClients,money:vMoney,more:vMore};
+  v.innerHTML=(views[S.view]||vHome)();
+  if(S.view==='money')drawCharts();
+  if(S.openJobId&&!$('#sheet').hidden&&$('#sheetCard').dataset.kind==='job')openJob(S.openJobId,true);
+}
+const page=(title,sub,right,body)=>`<div class="ph"><div><h1>${title}</h1>${sub?`<p>${sub}</p>`:''}</div>${right||''}</div>${banners()}${body}`;
+function banners(){
+  let b='';
+  if(S.mode==='local')b+=`<div class="banner warn"><span><b>Saved on this device only.</b> Open My Booking 360 from claude.ai to keep bookings in your account and use Calendar and Gmail.</span></div>`;
+  if(S.jobs.some(j=>j.example)||S.clients.some(c=>c.example))b+=`<div class="banner"><span><b>Showing example bookings.</b></span><button class="btn sm" data-act="clearExamples">Remove</button></div>`;
+  if(S.mode==='live'&&S.loaded&&!S.settings.businessName)b+=`<div class="banner"><span><b>Add your business details</b> for your quotes and invoices.</span><button class="btn sm" data-act="setGroup" data-v="profile">Set up</button></div>`;
+  return b;
+}
+const timeText=j=>j.callTime?`${j.callTime}${j.finishTime?' – '+j.finishTime:''}`:'All day';
+function dayLabel(s){
+  const t=today();if(s===t)return `Today, ${fmtD(s,{day:'numeric',month:'long'})}`;
+  if(s===addDays(t,1))return `Tomorrow, ${fmtD(s,{day:'numeric',month:'long'})}`;
+  return fmtD(s,{weekday:'long',day:'numeric',month:'long',...(s.slice(0,4)!==t.slice(0,4)?{year:'numeric'}:{})});
+}
+function jobCard(j){
+  const c=client(j.clientId),t=totals(j),ps=payState(j),nd=daysBetween(j.start,jobEnd(j))+1;
+  return `<button class="jcard st-${j.status}" data-act="openJob" data-id="${j.id}">
+    <span class="top"><span class="h">${esc(j.title||'Untitled job')}</span><span class="sbadge st-${j.status}">${esc(ST[j.status]?.label||j.status)}</span></span>
+    <span class="sub">${esc([c?.name||'No client',j.engineer].filter(Boolean).join(' · '))}</span>
+    <span class="bot"><span class="meta"><span>${ic('clock')}${esc(timeText(j))}</span>${j.venue?`<span>${ic('pin')}${esc(j.venue)}</span>`:''}${nd>1?`<span>${nd} days</span>`:''}${ps?`<span class="sbadge pp-${ps}">${PAYLBL[ps]}</span>`:''}${j.example?'<span class="badge">Example</span>':''}</span>
+    <span class="amt">${t.total?money(t.total):''}</span></span></button>`;
+}
+function emptyJobs(msg){return `<div class="empty"><b>${msg}</b><span>Add a booking with the dates, client, engineer and rates. Hold dates as a heavy pencil and confirm later.</span><button class="btn primary" data-act="newJob">Add a booking</button></div>`}
+
+const ACTIVE=['blocked','heavy','confirmed'];
+const sameCrew=(a,b)=>!a.engineer||!b.engineer||a.engineer.trim().toLowerCase()===b.engineer.trim().toLowerCase();
+function attention(){
+  const t=today(),out=[];
+  S.jobs.forEach(j=>{
+    const ps=payState(j),c=client(j.clientId)?.name||'No client';
+    if(ps==='overdue')out.push({j,st:'heavy',icon:'inv',w:0,b:`Overdue: ${j.invoice.no}`,s:`${j.title} · due ${fmtD(j.invoice.due)}`,amt:totals(j).balance});
+    else if(j.status==='completed'&&!j.invoice&&totals(j).total>0)out.push({j,st:'completed',icon:'inv',w:2,b:`Ready to invoice`,s:`${j.title} · ${c}`,amt:totals(j).total});
+    else if(j.status==='confirmed'&&jobEnd(j)<t)out.push({j,st:'confirmed',icon:'check',w:3,b:`Did this job go ahead?`,s:`${j.title} · ended ${fmtD(jobEnd(j))}`});
+    else if(j.status==='heavy'&&j.start>=t&&daysBetween(t,j.start)<=14)out.push({j,st:'heavy',icon:'clock',w:4,b:`Pencil to confirm`,s:`${j.title} · ${fmtD(j.start)}`});
+    if(ACTIVE.includes(j.status)&&jobEnd(j)>=t){
+      const hit=S.jobs.find(o=>o.id!==j.id&&ACTIVE.includes(o.status)&&o.start<=jobEnd(j)&&jobEnd(o)>=j.start&&sameCrew(j,o));
+      if(hit&&j.id<hit.id)out.push({j,st:'blocked',icon:'clash',w:1,b:'Date conflict',s:`${j.title} and ${hit.title}`});
+    }
+  });
+  return out.sort((a,b)=>a.w-b.w);
+}
+const stat=(label,val,color,act,v,bad)=>`<button class="stat ${bad?'bad':''}" data-act="${act}" data-v="${v}" style="--sc:${color}"><span class="cap">${label}</span><span class="v">${val}</span><i></i></button>`;
+function vHome(){
+  const t=today(),live=S.jobs.filter(j=>j.status!=='cancelled');
+  const unpaid=r2(S.jobs.filter(j=>j.invoice&&j.status!=='cancelled').reduce((a,j)=>a+Math.max(0,totals(j).balance),0));
+  const openQ=S.jobs.filter(isOpenQuote).length;
+  const active=live.filter(j=>jobEnd(j)>=t&&['confirmed','heavy'].includes(j.status)).length;
+  const conf=r2(live.filter(j=>j.status==='confirmed'&&jobEnd(j)>=t).reduce((a,j)=>a+totals(j).total,0));
+  const att=attention(),shown=S.attnAll?att:att.slice(0,3);
+  const up=live.filter(j=>jobEnd(j)>=t&&j.status!=='blocked').slice(0,10);
+  const name=(S.settings.ownerName||'').split(' ')[0];
+  return page(`Hello${name?', '+esc(name):''}`,fmtD(t,{weekday:'long',day:'numeric',month:'long',year:'numeric'}),
+    `<button class="avatar" data-act="tab" data-v="more" aria-label="Settings">${esc(initials(S.settings.ownerName||S.settings.businessName||'Me'))}</button>`,`
+  <div class="stats">
+    ${stat('Open quotes',openQ,'var(--accent)','jobFilterGo','quotes')}
+    ${stat('Unpaid inv',moneyShort(unpaid),'var(--st-heavy)','tab','money')}
+    ${stat('Active jobs',active,'var(--st-confirmed)','jobFilterGo','upcoming')}
+    ${stat('Confirmed',moneyShort(conf),'#7CC7C0','tab','cal')}
+  </div>
+  ${att.length?`<div class="sec"><div class="sh"><h2>Needs attention</h2>${att.length>3?`<button class="link" data-act="attnAll">${S.attnAll?'Show less':`View all (${att.length})`}</button>`:''}</div>
+    <div class="alist">${shown.map(a=>`<button class="arow st-${a.st}" data-act="openJob" data-id="${a.j.id}"><span class="ibub">${ic(a.icon)}</span><span class="t"><b>${esc(a.b)}</b><small>${esc(a.s)}</small></span>${a.amt!=null?`<span class="amt">${money(a.amt)}</span>`:ic('chev')}</button>`).join('')}</div></div>`:''}
+  <div class="sec"><div class="sh"><h2>Upcoming bookings</h2>${up.length>1?`<span class="row"><button class="round" style="width:36px;height:36px;color:var(--ink-2)" data-act="scrollCar" data-n="-1" aria-label="Previous">${ic('chevL')}</button><button class="round" style="width:36px;height:36px;color:var(--ink-2)" data-act="scrollCar" data-n="1" aria-label="Next">${ic('chev')}</button></span>`:''}</div>
+  ${up.length?`<div class="carousel" id="car">${up.map(j=>{const c=client(j.clientId),onNow=j.start<=t&&jobEnd(j)>=t;
+    return `<button class="ucard st-${j.status}" data-act="openJob" data-id="${j.id}"><span class="row"><span class="st">${esc(ST[j.status].label)}</span>${onNow?'<span class="badge">Today</span>':j.start===addDays(t,1)?'<span class="badge">Tomorrow</span>':''}</span>
+      <span class="h">${esc(j.title||'Untitled job')}</span>
+      <span class="meta"><span>${ic('date')}${esc(fmtRange(j.start,jobEnd(j)))}</span><span>${ic('clock')}${esc(timeText(j))}</span>${j.venue?`<span>${ic('pin')}${esc(j.venue)}</span>`:''}</span>
+      ${c?`<span class="hint">${esc(c.name)}</span>`:''}
+      <span class="foot"><span>Total amount</span><span class="num">${money(totals(j).total)}</span></span></button>`}).join('')}</div>`:emptyJobs('No upcoming bookings')}</div>
+  <button class="fab" data-act="newJob" aria-label="New booking">${ic('plus')}</button>`);
+}
+const isOpenQuote=j=>j.quote&&!j.quote.acceptedAt&&!j.invoice&&!['cancelled','notdone'].includes(j.status)&&!(j.quote.validUntil&&j.quote.validUntil<today());
+
+const FILTERS=[['upcoming','Upcoming'],['all','All jobs'],...STATUSES.map(s=>[s.k,s.label]),['quotes','Open quotes'],['unpaid','Unpaid']];
+function vJobs(){
+  const t=today(),q=S.search.trim().toLowerCase(),f=S.jobFilter;
+  let js=S.jobs.slice();
+  if(f==='upcoming')js=js.filter(j=>jobEnd(j)>=t&&j.status!=='cancelled');
+  else if(f==='unpaid')js=js.filter(j=>j.invoice&&totals(j).balance>0);
+  else if(f==='quotes')js=js.filter(isOpenQuote);
+  else if(f!=='all')js=js.filter(j=>j.status===f);
+  if(q)js=js.filter(j=>[j.title,j.engineer,j.role,j.venue,j.address,j.po,j.notes,client(j.clientId)?.name,j.invoice?.no,j.quote?.no].join(' ').toLowerCase().includes(q));
+  if(f!=='upcoming'&&f!=='quotes')js.reverse();
+  const groups=[];js.forEach(j=>{const k=j.start||'';let g=groups[groups.length-1];if(!g||g.k!==k)groups.push(g={k,js:[]});g.js.push(j)});
+  return page('Jobs','','',`<label class="search">${ic('search')}<span class="sr">Search jobs</span><input id="jobSearch" type="search" placeholder="Search client, event or engineer…" value="${esc(S.search)}"></label>
+  <div class="chips" role="group" aria-label="Filter jobs">${FILTERS.map(([k,l])=>`<button class="chip" data-act="jobFilter" data-v="${k}" aria-pressed="${f===k}">${l}<span class="n">${countFilter(k)}</span></button>`).join('')}</div>
+  ${groups.length?groups.map(g=>`<div class="sec"><div class="dayh ${g.k===t?'today':''}">${g.k?esc(dayLabel(g.k)):'No date'}</div><div class="list">${g.js.map(jobCard).join('')}</div></div>`).join('')
+    :(S.jobs.length?`<div class="empty"><b>No jobs match</b><span>Try another filter or search.</span></div>`:emptyJobs('No bookings yet'))}
+  <button class="fab" data-act="newJob" aria-label="New booking">${ic('plus')}</button>`);
+}
+function countFilter(k){const t=today();
+  if(k==='upcoming')return S.jobs.filter(j=>jobEnd(j)>=t&&j.status!=='cancelled').length;
+  if(k==='all')return S.jobs.length;
+  if(k==='unpaid')return S.jobs.filter(j=>j.invoice&&totals(j).balance>0).length;
+  if(k==='quotes')return S.jobs.filter(isOpenQuote).length;
+  return S.jobs.filter(j=>j.status===k).length}
+
+function jobsOnDay(d){return S.jobs.filter(j=>j.start<=d&&jobEnd(j)>=d)}
+function vCal(){
+  const m=pd(S.calMonth),y=m.getFullYear(),mo=m.getMonth();
+  const first=new Date(y,mo,1),off=(first.getDay()+6)%7,start=new Date(y,mo,1-off);
+  const t=today();let cells='';
+  for(let i=0;i<42;i++){const d=new Date(start);d.setDate(start.getDate()+i);const s=iso(d);
+    if(i===35&&d.getMonth()!==mo)break;
+    const js=jobsOnDay(s);
+    cells+=`<button class="cal-day ${d.getMonth()!==mo?'other':''} ${s===t?'today':''} ${s===S.calSel?'sel':''}" data-act="calDay" data-d="${s}" aria-label="${fmtLong(s)}, ${js.length} bookings"><span class="dn">${d.getDate()}</span>${js.slice(0,3).map(j=>`<span class="cal-line st-${j.status}"></span>`).join('')}${js.length>3?`<span class="cal-more">+${js.length-3}</span>`:''}</button>`}
+  const sel=jobsOnDay(S.calSel);
+  return page('Calendar','',`<button class="round" data-act="newJob" data-date="${S.calSel}" aria-label="New booking on the selected day">${ic('calplus')}</button>`,`
+  <div class="sec"><div class="mnav"><h2>${first.toLocaleDateString('en-ZA',{month:'long',year:'numeric'})}</h2><span class="row" style="gap:2px"><button class="link" data-act="calToday">Today</button><button class="icon-btn" data-act="calMove" data-n="-1" aria-label="Previous month">${ic('chevL')}</button><button class="icon-btn" data-act="calMove" data-n="1" aria-label="Next month">${ic('chev')}</button></span></div>
+  <div class="cal"><div class="cal-grid">${['Mon','Tue','Wed','Thu','Fri','Sat','Sun'].map(d=>`<div class="cal-dow">${d}</div>`).join('')}${cells}</div></div>
+  <div class="legend">${STATUSES.map(s=>`<span class="st-${s.k}">${s.label}</span>`).join('')}</div></div>
+  <div class="sec"><span class="cap dark">${fmtD(S.calSel,{weekday:'long',day:'numeric',month:'long'})}</span>
+  ${sel.length?`<div class="list">${sel.map(j=>`<button class="drow st-${j.status}" data-act="openJob" data-id="${j.id}"><span class="bar"></span><span class="t"><b>${esc(j.title)}</b><small>${esc([timeText(j),j.venue,ST[j.status].label].filter(Boolean).join(' • '))}</small></span>${ic('chev')}</button>`).join('')}</div>`
+    :`<div class="empty"><span>Nothing booked. This day is free.</span><button class="btn sm" data-act="newJob" data-date="${S.calSel}">${ic('plus')}Add booking</button></div>`}</div>`);
+}
+
+function clientStats(c){const js=S.jobs.filter(j=>j.clientId===c.id);return{n:js.length,owed:r2(js.filter(j=>j.invoice).reduce((a,j)=>a+Math.max(0,totals(j).balance),0)),billed:r2(js.filter(j=>j.status!=='cancelled').reduce((a,j)=>a+totals(j).total,0))}}
+const waNum=p=>{let d=String(p||'').replace(/\D/g,'');if(d.startsWith('0'))d='27'+d.slice(1);return d};
+function contactActs(c){
+  const wa=waNum(c.phone),tel=String(c.phone||'').replace(/[^\d+]/g,'');
+  return `<div class="cact">${wa?`<a href="https://wa.me/${wa}" target="_blank" rel="noopener" aria-label="WhatsApp ${esc(c.name)}">${ic('wa')}</a>`:`<span aria-hidden="true">${ic('wa')}</span>`}
+    ${tel?`<a href="tel:${esc(tel)}" target="_blank" rel="noopener" aria-label="Call ${esc(c.name)}">${ic('phone')}</a>`:`<span aria-hidden="true">${ic('phone')}</span>`}
+    ${c.email?`<a href="mailto:${esc(c.email)}" target="_blank" rel="noopener" aria-label="Email ${esc(c.name)}">${ic('mail')}</a>`:`<span aria-hidden="true">${ic('mail')}</span>`}</div>`;
+}
+function vClients(){
+  const q=S.clientSearch.trim().toLowerCase();
+  const cs=S.clients.filter(c=>!q||[c.name,c.contact,c.email,c.phone].join(' ').toLowerCase().includes(q));
+  const L=c=>{const ch=(c.name||'#').trim()[0].toUpperCase();return /[A-Z]/.test(ch)?ch:'#'};
+  const groups=[];cs.forEach(c=>{const k=L(c);let g=groups.find(x=>x.k===k);if(!g)groups.push(g={k,cs:[]});g.cs.push(c)});
+  groups.sort((a,b)=>a.k.localeCompare(b.k));
+  const have=new Set(groups.map(g=>g.k));
+  const card=c=>{const st=clientStats(c);return `<div class="ccard"><button class="who" data-act="openClient" data-id="${c.id}"><span class="cav">${esc(initials(c.name))}</span><span class="t"><b>${esc(c.name)}</b><small>${esc([c.contact,`${st.n} ${st.n===1?'job':'jobs'}`].filter(Boolean).join(' · '))}</small></span>${st.owed>0?`<span class="owed">${money(st.owed)}<br>owed</span>`:''}</button>${contactActs(c)}</div>`};
+  return page('Clients','',`<button class="round solid" data-act="newClient" aria-label="New client">${ic('userplus')}</button>`,`
+  <label class="search">${ic('search')}<span class="sr">Search clients</span><input id="clientSearch" type="search" placeholder="Search by name or company…" value="${esc(S.clientSearch)}"></label>
+  ${cs.length?`<div class="sec clients-list">${groups.map(g=>`<span class="letter" id="L-${g.k}">${g.k}</span><div class="list">${g.cs.map(card).join('')}</div>`).join('')}</div>
+    ${!q&&S.clients.length>4?`<nav class="az" aria-label="Jump to letter">${'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('').map(l=>`<button data-act="az" data-v="${l}" ${have.has(l)?'':'disabled'}>${l}</button>`).join('')}</nav>`:''}`
+  :`<div class="empty"><b>${S.clients.length?'No clients match':'No clients yet'}</b><span>Save each client once with their billing details. Their email fills in when you send a quote or invoice.</span><button class="btn primary" data-act="newClient">Add a client</button></div>`}`);
+}
+
+/* ---------- money ---------- */
+function monthsWindow(){const n=new Date(),out=[];for(let i=-9;i<=2;i++){const d=new Date(n.getFullYear(),n.getMonth()+i,1);out.push(iso(d).slice(0,7))}return out}
+function finSeries(){
+  const ms=monthsWindow(),inv={},rec={},w={firm:{},pen:{},can:{}};ms.forEach(m=>{inv[m]=0;rec[m]=0;w.firm[m]=0;w.pen[m]=0;w.can[m]=0});
+  S.jobs.forEach(j=>{
+    if(j.invoice&&j.status!=='cancelled'){const k=(j.invoice.issued||'').slice(0,7);if(k in inv)inv[k]+=totals(j).total}
+    (j.payments||[]).forEach(p=>{const k=(p.date||'').slice(0,7);if(k in rec)rec[k]+=+p.amount||0});
+    const k=(j.start||'').slice(0,7);if(k in inv){const g=j.status==='cancelled'?'can':(['heavy','blocked'].includes(j.status)?'pen':'firm');w[g][k]++}
+  });
+  return{ms,inv:ms.map(m=>r2(inv[m])),rec:ms.map(m=>r2(rec[m])),firm:ms.map(m=>w.firm[m]),pen:ms.map(m=>w.pen[m]),can:ms.map(m=>w.can[m])};
+}
+function dueText(j){
+  const n=daysBetween(today(),j.invoice.due);
+  if(n<0)return `<span class="due" style="color:var(--bad)">Overdue ${-n}d</span>`;
+  return `<span class="due" style="color:${n<=3?'var(--warn)':'var(--ink-3)'}">${n===0?'Due today':`Due in ${n}d`}</span>`;
+}
+function vMoney(){
+  const t=today(),m=t.slice(0,7),f=finSeries();
+  const inv=S.jobs.filter(j=>j.invoice&&j.status!=='cancelled');
+  const owed=inv.filter(j=>totals(j).balance>0).sort((a,b)=>(a.invoice.due||'').localeCompare(b.invoice.due||''));
+  const owedAmt=r2(owed.reduce((a,j)=>a+totals(j).balance,0));
+  const pays=S.jobs.flatMap(j=>(j.payments||[]).map(p=>({...p,j}))).sort((a,b)=>(b.date||'').localeCompare(a.date||''));
+  const first=f.ms[0];const sumIn=r2(f.inv.slice(0,10).reduce((a,b)=>a+b,0)),sumRec=r2(f.rec.slice(0,10).reduce((a,b)=>a+b,0));
+  const toInvoice=S.jobs.filter(j=>j.status==='completed'&&!j.invoice&&totals(j).total>0);
+  const byClient={};inv.forEach(j=>{if((j.invoice.issued||'')>=first){const n=client(j.clientId)?.name||'No client';byClient[n]=(byClient[n]||0)+totals(j).total}});
+  const top=Object.entries(byClient).sort((a,b)=>b[1]-a[1]).slice(0,5),topMax=top[0]?.[1]||1;
+  const pipeline=r2(S.jobs.filter(j=>['confirmed','heavy'].includes(j.status)&&!j.invoice&&jobEnd(j)>=t).reduce((a,j)=>a+totals(j).total,0));
+  const shownOwed=S.moneyAll?owed:owed.slice(0,3);
+  return page('Money','Financial performance overview','',`
+  <div class="card hero"><span class="cap">Invoiced · last 10 months</span><span class="big">${money(sumIn)}</span>
+    <div class="split"><div><span class="cap">Received</span><span class="num">${moneyShort(sumRec)}</span></div><div><span class="cap">Booked</span><span class="num">${moneyShort(pipeline)}</span></div><div><span class="cap">Unpaid</span><span class="num" style="color:var(--warn)">${moneyShort(owedAmt)}</span></div></div></div>
+  <div class="card"><h3>Monthly income</h3><div class="chart-box"><canvas id="chFin" aria-label="Invoiced and received by month"></canvas></div></div>
+  <div class="sec"><div class="sh"><h2>Unpaid invoices</h2>${owed.length>3?`<button class="link" data-act="moneyAll">${S.moneyAll?'Show less':'View all'}</button>`:''}</div>
+  ${owed.length?shownOwed.map(j=>{const ps=payState(j);return `<div class="icard"><div class="top"><span><b>${esc(j.invoice.no)}</b><small>${esc(j.title)} · ${esc(client(j.clientId)?.name||'No client')}</small></span><span class="r"><span class="num">${money(totals(j).balance)}</span>${dueText(j)}</span></div>
+    <div class="acts">${ps==='overdue'?`<button class="btn primary" data-act="emailInv" data-id="${j.id}" >Send reminder</button>`:`<button class="btn" data-act="sharePdf" data-k="invoice" data-id="${j.id}">View PDF</button>`}<button class="round soft" data-act="openJob" data-id="${j.id}" aria-label="Open job">${ic('dots')}</button></div></div>`}).join('')
+    :`<div class="empty"><span>Every invoice is paid.</span></div>`}</div>
+  ${toInvoice.length?`<div class="sec"><div class="sh"><h2>Ready to invoice</h2></div><div class="list">${toInvoice.map(jobCard).join('')}</div></div>`:''}
+  <div class="card"><h3>Bookings per month</h3><div class="chart-box"><canvas id="chWork" aria-label="Bookings per month by status"></canvas></div></div>
+  ${top.length?`<div class="card"><h3>Top clients</h3><div class="bar-list">${top.map(([n,v])=>`<div class="bar-row"><span>${esc(n)}</span><span class="num">${money(v)}</span><span class="track"><i style="width:${Math.max(3,v/topMax*100)}%"></i></span></div>`).join('')}</div></div>`:''}
+  <div class="card"><h3>Recent payments</h3>${pays.length?`<div>${pays.slice(0,10).map(p=>`<div class="pay"><span><b class="num">${money(p.amount)}</b> · ${esc(client(p.j.clientId)?.name||p.j.title)}<br><small>${fmtD(p.date)} · ${esc(p.method||'')}${p.j.invoice?' · '+esc(p.j.invoice.no):''}</small></span><button class="btn sm" data-act="openJob" data-id="${p.j.id}">Job</button></div>`).join('')}</div>`:`<span class="hint">No payments recorded yet. Open a job and tap “Record payment”.</span>`}</div>
+  <div class="card"><h3>Export</h3><span class="hint">For your accountant, SARS VAT201 returns and provisional tax.</span><div class="row"><button class="btn sm" data-act="exportJobs">Jobs & invoices (CSV)</button><button class="btn sm" data-act="exportPays">Payments (CSV)</button></div></div>`);
+}
+function css(v){return getComputedStyle(document.documentElement).getPropertyValue(v).trim()}
+function drawCharts(){
+  if(!window.Chart)return;
+  const f=finSeries(),labels=f.ms.map(k=>pd(k+'-01').toLocaleDateString('en-ZA',{month:'short'}));
+  const ink3=css('--ink-3'),line=css('--line'),font={family:'Archivo, system-ui, sans-serif',size:11};
+  const base={responsive:true,maintainAspectRatio:false,interaction:{mode:'index',intersect:false},
+    plugins:{legend:{position:'bottom',labels:{color:ink3,font,boxWidth:10,boxHeight:10,usePointStyle:true,pointStyle:'rectRounded'}},tooltip:{}},
+    scales:{x:{grid:{display:false},ticks:{color:ink3,font},border:{color:css('--ink-2')}},y:{beginAtZero:true,grid:{color:line},ticks:{color:ink3,font,maxTicksLimit:6},border:{display:false}}}};
+  const a=$('#chFin');if(a)S.charts.push(new Chart(a,{type:'bar',data:{labels,datasets:[
+    {label:'Invoiced',data:f.inv,backgroundColor:css('--accent'),borderRadius:3,maxBarThickness:26},
+    {label:'Received',data:f.rec,backgroundColor:'#9ED9D3',borderRadius:3,maxBarThickness:26}]},
+    options:{...base,plugins:{...base.plugins,tooltip:{callbacks:{label:c=>`${c.dataset.label}: ${money(c.parsed.y)}`}}},scales:{...base.scales,y:{...base.scales.y,ticks:{...base.scales.y.ticks,callback:v=>moneyShort(v)}}}}}));
+  const b=$('#chWork');if(b)S.charts.push(new Chart(b,{type:'bar',data:{labels,datasets:[
+    {label:'Confirmed / done',data:f.firm,backgroundColor:css('--st-confirmed'),borderRadius:3,maxBarThickness:26,stack:'s'},
+    {label:'Pencilled / blocked',data:f.pen,backgroundColor:css('--st-heavy'),borderRadius:3,maxBarThickness:26,stack:'s'},
+    {label:'Cancelled',data:f.can,backgroundColor:css('--st-cancelled'),borderRadius:3,maxBarThickness:26,stack:'s'}]},
+    options:{...base,scales:{x:{...base.scales.x,stacked:true},y:{...base.scales.y,stacked:true,ticks:{...base.scales.y.ticks,precision:0}}}}}));
+}
+
+/* ---------- settings ---------- */
+const GROUPS={
+  profile:{t:'Your business',f:[['businessName','Business name'],['ownerName','Your name'],['email','Email','email'],['phone','Phone','tel'],['regNo','Company reg. no. (CIPC)'],['address','Business address','area']]},
+  docs:{t:'Quotes & invoices',f:[['invoicePrefix','Invoice prefix'],['nextInvoiceNo','Next invoice no.','number','min="1"'],['termsDays','Payment terms (days)','number','min="0"'],['quotePrefix','Quote prefix'],['nextQuoteNo','Next quote no.','number','min="1"'],['quoteValidDays','Quotes valid for (days)','number','min="1"'],['invoiceNotes','Note printed on invoices','area']]},
+  bank:{t:'Payment details',f:[['accountName','Account name'],['bankName','Bank'],['bsb','Branch code','text','inputmode="numeric"'],['accountNo','Account number','text','inputmode="numeric"'],['accountType','Account type','text','placeholder="Cheque / Current / Savings"'],['swift','SWIFT code (overseas clients)']]},
+  rates:{t:'Services & rates',f:[['defaultRate','Default day rate','number','step="0.01" min="0"'],['travelRate','Travel rate per km','number','step="0.01" min="0"'],['crew','Engineers and techs you book (one per line)','area']]},
+  tax:{t:'Tax settings',f:[['gstRegistered','Registered for VAT','check','Adds VAT and titles invoices “Tax invoice”, as SARS requires'],['abn','VAT number','text','inputmode="numeric"'],['gstRate','VAT %','number','step="0.1" min="0"'],['currency','Currency','currency']]},
+  cal:{t:'Calendar & sync',f:[['autoSync','Add new bookings to Google Calendar','check','You can turn this off per booking'],['timeZone','Calendar time zone']]},
+};
+function vMore(){
+  const s=S.settings,row=(k,icon,label,v='')=>`<button class="srow" data-act="setGroup" data-v="${k}"><span class="ibub">${ic(icon)}</span><span class="t">${label}</span>${v?`<span class="v">${esc(v)}</span>`:''}${ic('chev')}</button>`;
+  return page('Settings','','',`
+  <div class="card"><div class="profile"><span class="avatar lg">${esc(initials(s.ownerName||s.businessName||'Me'))}</span><span><b>${esc(s.ownerName||'Your name')}</b><small>${esc(s.businessName||'Add your business details')}</small><button class="link" data-act="setGroup" data-v="profile">Edit profile</button></span></div></div>
+  <div class="sec"><span class="cap">App settings</span><div class="slist">
+    ${row('docs','quote','Quotes & invoices',`${s.invoicePrefix||''}${s.nextInvoiceNo||''}`)}
+    ${row('cal','sync','Calendar & sync',s.calToken?'Subscribed':'')}
+    ${row('privacy','shield','Account & backup')}</div></div>
+  <div class="sec"><span class="cap">Business</span><div class="slist">
+    ${row('rates','brief','Services & rates',s.defaultRate?moneyShort(s.defaultRate)+'/day':'')}
+    ${row('bank','bank','Payment details',s.bankName||'')}
+    ${row('tax','tax','Tax settings',s.gstRegistered?`VAT ${s.gstRate}%`:'No VAT')}</div></div>
+  <p class="ver">My Booking 360 v2.0</p>`);
+}
+function openSettings(k){
+  const s=S.settings;
+  if(k==='cal'){openCalSettings();return}
+  if(k==='privacy'){openSheet('settings',head('Account & backup')+`<div class="sheet-body">
+    <div class="card"><dl class="kv"><dt>Signed in as</dt><dd>${esc(S.user?.email||S.user?.name||'—')}</dd><dt>Saving</dt><dd>Saved to your private My Booking 360 account, on every device you sign in on.</dd></dl></div>
+    <div class="card"><h3>Backup</h3><span class="hint">Download everything as one file, or import a backup, including one from the Claude version of this app.</span>
+      <div class="row"><button class="btn" data-act="exportBackup">Download backup</button><label class="btn">Import backup<input type="file" id="importFile" accept=".json,application/json" hidden></label></div></div>
+    <button class="btn danger" data-act="signOut">Sign out</button></div>`);return}
+  const g=GROUPS[k];if(!g)return;
+  const fld=([n,l,t='text',x=''])=>t==='area'?`<label class="field"><span>${l}</span><textarea name="${n}" id="set-${n}" rows="3">${esc(s[n])}</textarea></label>`
+    :t==='check'?`<label class="switch"><span>${l}<br><small class="hint">${x}</small></span><input type="checkbox" name="${n}" id="set-${n}" ${s[n]?'checked':''}></label>`
+    :t==='currency'?`<label class="field"><span>${l}</span><select name="${n}" id="set-${n}">${curOptions(s.currency||'ZAR')}</select></label>`
+    :`<label class="field"><span>${l}</span><input name="${n}" id="set-${n}" type="${t}" value="${esc(s[n])}" ${x}></label>`;
+  openSheet('settings',head(g.t,`<button class="tbtn r" type="submit" form="settingsForm">Save</button>`,`<button class="tbtn" data-act="closeSheet">Cancel</button>`)+`<div class="sheet-body"><form class="form" id="settingsForm" data-form="settings">${g.f.map(fld).join('')}<button class="btn primary" type="submit">Save</button></form></div>`);
+}
+
+/* ---------- sheets ---------- */
+function openSheet(kind,html){const c=$('#sheetCard');c.dataset.kind=kind;c.innerHTML=html;$('#sheet').hidden=false;document.body.style.overflow='hidden'}
+function closeSheet(){$('#sheet').hidden=true;S.openJobId=null;S.draft=null;document.body.style.overflow=''}
+const head=(title,right='',left=`<button class="tbtn" data-act="closeSheet">Close</button>`)=>`<div class="sheet-head">${left}<h2>${esc(title)}</h2>${right||'<span style="min-width:64px"></span>'}</div>`;
+const unitTxt=(q,u)=>u==='flat'?'':(+q===1?u:u==='half day'?'half days':u==='km'?'km':u+'s');
+function openJob(id,refresh){
+  const j=S.jobs.find(x=>x.id===id);if(!j){if(refresh)closeSheet();return}
+  S.openJobId=id;
+  const sb=$('#sheetCard .sheet-body'),scroll=refresh&&sb?sb.scrollTop:0;
+  const c=client(j.clientId),t=totals(j),ps=payState(j);
+  const kv=[['Client',c?`${esc(c.name)}${c.email?`<br><span style="font-size:13px">${esc(c.email)}</span><button class="copy" data-act="copy" data-t="${esc(c.email)}">Copy</button>`:''}${c.phone?`<br><span style="font-size:13px">${esc(c.phone)}</span><button class="copy" data-act="copy" data-t="${esc(c.phone)}">Copy</button>`:''}`:'—'],
+    ['Engineer / tech',esc([j.engineer,j.role].filter(Boolean).join(' · ')||'—')],
+    ['Venue / site',esc([j.venue,j.address].filter(Boolean).join(', ')||'—')],
+    ['On-site contact',esc([j.siteContact,j.sitePhone].filter(Boolean).join(' · ')||'—')],
+    ['PO / ref',esc(j.po||'—')]];
+  const calLine=S.settings.calToken?'On your subscribed calendar. Changes show up automatically.':'Save it as a calendar file, or subscribe to all bookings in Settings.';
+  const lines=(j.items||[]).map(i=>{const u=unitTxt(i.qty,i.unit);return `<div class="ln"><span><b>${esc(i.desc||'Item')}</b><small>${i.unit==='flat'?'Flat fee':`${esc(i.qty)} ${esc(u)} @ ${money(i.rate)}/${esc(i.unit==='half day'?'half day':i.unit)}`}</small></span><span class="num">${money((+i.qty||0)*(+i.rate||0))}</span></div>`}).join('');
+  openSheet('job',`<div class="sheet-head"><button class="round soft" data-act="closeSheet" aria-label="Back">${ic('back')}</button><h2>Booking details</h2><button class="round soft" data-act="toggleMenu" aria-label="More actions" aria-expanded="false">${ic('dots')}</button></div>
+  <div class="menu" id="moreMenu" hidden>
+    <button data-act="editJob" data-id="${j.id}">${ic('edit')}Edit booking</button>
+    <button data-act="dupJob" data-id="${j.id}">${ic('copy')}Duplicate booking</button>
+    <button data-act="syncCal" data-id="${j.id}" >${ic('date')}Add to calendar</button>
+    <button class="danger" data-act="askDel">${ic('trash')}Delete booking</button></div>
+  <div class="sheet-sub"><span class="cap">Status</span><div class="spills">${STATUSES.map(x=>`<button class="st-${x.k}" data-act="setStatus" data-id="${j.id}" data-v="${x.k}" aria-pressed="${j.status===x.k}">${x.label}</button>`).join('')}</div></div>
+  <div class="sheet-body">
+    <div class="warnbox" id="delConfirm" hidden><b>Delete this booking?</b> Its quote, invoice and payment records go with it. This cannot be undone.<div class="row end" style="margin-top:10px"><button class="btn sm" data-act="cancelDel">Keep it</button><button class="btn sm danger solid" data-act="delJob" data-id="${j.id}">Delete booking</button></div></div>
+    <div class="dtitle">${j.example?'<span class="badge" style="align-self:flex-start">Example</span>':''}<h3>${esc(j.title||'Untitled job')}</h3><div class="meta"><span>${ic('date')}${esc(fmtRange(j.start,jobEnd(j)))}${jobEnd(j)!==j.start?` (${daysBetween(j.start,jobEnd(j))+1} days)`:''}</span><span>${ic('clock')}${esc(timeText(j))}</span>${j.venue?`<span>${ic('pin')}${esc(j.venue)}</span>`:''}</div></div>
+    <div class="sec"><div class="sh"><span class="cap dark">Charges</span><button class="link" data-act="editJob" data-id="${j.id}">Edit</button></div>
+      <div class="card flush lines">${lines||'<div class="ln"><span class="hint">No charges yet. Tap Edit to add your rates.</span></div>'}
+        ${j.gst||t.paid?`<div class="ln subt" style="border-top:1px solid var(--line)"><span>Subtotal</span><span class="num">${money(t.sub)}</span></div>`:''}${j.gst?`<div class="ln subt"><span>VAT ${t.rate}%</span><span class="num">${money(t.gst)}</span></div>`:''}
+        <div class="ln total"><b>Total</b><span class="num">${money(t.total)}</span></div>
+        ${t.paid?`<div class="ln subt"><span>Paid</span><span class="num">−${money(t.paid)}</span></div><div class="ln subt"><span><b>Balance due</b></span><span class="num" style="color:var(--ink)">${money(t.balance)}</span></div>`:''}</div></div>
+    ${quoteBlock(j,t)}
+    ${invoiceBlock(j,t,ps)}
+    <div class="card" id="payCard"><div class="sh"><h3>Payments</h3>${t.balance>0||!t.total?`<button class="btn sm" data-act="showPay">${ic('plus')}Record payment</button>`:''}</div>
+      <form data-form="payment" data-id="${j.id}" id="payForm" hidden class="form" style="gap:14px">
+        <div class="grid2"><label class="field"><span>Amount</span><input name="amount" id="pay-amount" type="number" step="0.01" min="0.01" required value="${t.balance>0?t.balance:''}"></label><label class="field"><span>Date paid</span><input name="date" id="pay-date" type="date" required value="${today()}"></label></div>
+        <div class="grid2"><label class="field"><span>Method</span><select name="method" id="pay-method">${METHODS.map(m=>`<option>${m}</option>`).join('')}</select></label><label class="field"><span>Note</span><input name="note" id="pay-note" placeholder="e.g. deposit"></label></div>
+        <div class="row end"><button type="button" class="btn sm" data-act="hidePay">Cancel</button><button class="btn sm primary" type="submit">Save payment</button></div></form>
+      ${(j.payments||[]).length?`<div>${j.payments.map(p=>`<div class="pay"><span><b class="num">${money(p.amount)}</b> · ${fmtD(p.date)}<br><small>${esc([p.method,p.note].filter(Boolean).join(' · '))}</small></span><button class="link danger" data-act="delPay" data-id="${j.id}" data-p="${p.id}">Remove</button></div>`).join('')}</div>`:'<span class="hint">No payments recorded.</span>'}</div>
+    <div class="card"><div class="sh"><h3>Details</h3><button class="link" data-act="editJob" data-id="${j.id}">Edit</button></div><dl class="kv">${kv.map(([k,v])=>`<dt>${k}</dt><dd>${v}</dd>`).join('')}</dl>${j.notes?`<div style="white-space:pre-wrap;font-size:14px;border-top:1px solid var(--line);padding-top:12px">${esc(j.notes)}</div>`:''}</div>
+    <div class="card"><div class="row"><span class="ibub tone-accent">${ic('date')}</span><span class="spacer" style="min-width:140px"><b>Calendar</b><br><small class="hint">${calLine}</small></span><button class="btn sm" data-act="syncCal" data-id="${j.id}" >Add</button></div></div>
+  </div>`);
+  if(refresh){const nb=$('#sheetCard .sheet-body');if(nb)nb.scrollTop=scroll}
+}
+const dateFields=(doc,a,b,j,la,lb)=>`<details class="dates"><summary>Change dates ›</summary><div class="grid2"><label class="field"><span>${la}</span><input type="date" data-act-change="invDate" data-doc="${doc}" data-k="${a[0]}" data-id="${j.id}" value="${esc(a[1])}"></label><label class="field"><span>${lb}</span><input type="date" data-act-change="invDate" data-doc="${doc}" data-k="${b[0]}" data-id="${j.id}" value="${esc(b[1])}"></label></div></details>`;
+const sentText=(d,fallback)=>d.sentAt?`Sent ${new Date(d.sentAt).toLocaleDateString('en-ZA',{day:'numeric',month:'short'})}`:fallback;
+function quoteBlock(j,t){
+  const s=S.settings,q=j.quote;
+  if(!q)return `<div class="card doc"><div class="hd"><span class="ibub tone-accent">${ic('quote')}</span><span class="t"><b>Quote</b><small>Will be ${esc(s.quotePrefix)}${esc(s.nextQuoteNo)}, valid ${esc(s.quoteValidDays)} days</small></span></div>
+    <div class="acts"><button class="btn primary" data-act="makeQuote" data-id="${j.id}" ${t.total>0?'':'disabled'}>Create quote</button></div>${t.total>0?'':'<span class="hint">Add charges first.</span>'}</div>`;
+  const exp=q.validUntil&&q.validUntil<today()&&!q.acceptedAt;
+  const badge=q.acceptedAt?'<span class="sbadge pp-paid">Accepted</span>':exp?'<span class="sbadge pp-overdue">Expired</span>':q.sentAt?'<span class="sbadge pp-sent">Sent</span>':'<span class="sbadge pp-draft">Draft</span>';
+  return `<div class="card doc"><div class="hd"><span class="ibub tone-accent">${ic('quote')}</span><span class="t"><b>Quote ${esc(q.no)}</b><small>${sentText(q,'Not sent yet')} · valid to ${fmtD(q.validUntil,{day:'numeric',month:'short'})}</small></span>${badge}</div>
+    <div class="acts"><button class="btn primary" data-act="emailQuote" data-id="${j.id}" >${q.sentAt?'Resend via email':'Send via email'}</button><button class="round" style="color:var(--ink)" data-act="sharePdf" data-k="quote" data-id="${j.id}" aria-label="Share quote PDF">${ic('pdf')}</button></div>
+    <div class="more">${q.acceptedAt?'':`<button class="link" data-act="acceptQuote" data-id="${j.id}">${ic('check')}Client accepted</button>`}<button class="link muted" data-act="pdfInv" data-k="quote" data-id="${j.id}">Save PDF</button>${q.sentAt?'':`<button class="link muted" data-act="markQuoteSent" data-id="${j.id}">Mark as sent</button>`}</div>
+    ${dateFields('quote',['issued',q.issued],['validUntil',q.validUntil],j,'Quote date','Valid until')}
+    <span class="hint">Uses this job's current charges.</span></div>`;
+}
+function invoiceBlock(j,t,ps){
+  const s=S.settings;
+  if(!j.invoice)return `<div class="card doc st-heavy"><div class="hd"><span class="ibub">${ic('inv')}</span><span class="t"><b>Invoice</b><small>Will be ${esc(s.invoicePrefix)}${esc(s.nextInvoiceNo)}, due in ${esc(s.termsDays)} days</small></span><span class="sbadge pp-draft">Not created</span></div>
+    <div class="acts"><button class="btn primary" data-act="makeInvoice" data-id="${j.id}" data-send="1" ${t.total>0?'':'disabled'}>Generate & send</button></div>${t.total>0?'':'<span class="hint">Add charges first.</span>'}</div>`;
+  const i=j.invoice,rem=ps==='overdue'||(i.sentAt&&t.balance>0);
+  return `<div class="card doc st-heavy"><div class="hd"><span class="ibub">${ic('inv')}</span><span class="t"><b>Invoice ${esc(i.no)}</b><small>${sentText(i,'Not sent yet')} · due ${fmtD(i.due,{day:'numeric',month:'short'})}${(i.reminders||[]).length?` · ${i.reminders.length} reminder${i.reminders.length>1?'s':''}`:''}</small></span><span class="sbadge pp-${ps}">${PAYLBL[ps]}</span></div>
+    <div class="acts"><button class="btn primary" data-act="emailInv" data-id="${j.id}" >${rem?'Send reminder':'Send via email'}</button><button class="round" style="color:var(--ink)" data-act="sharePdf" data-k="invoice" data-id="${j.id}" aria-label="Share invoice PDF">${ic('pdf')}</button></div>
+    <div class="more"><button class="link muted" data-act="pdfInv" data-k="invoice" data-id="${j.id}">Save PDF</button>${i.sentAt?'':`<button class="link muted" data-act="markSent" data-id="${j.id}">Mark as sent</button>`}</div>
+    ${dateFields('invoice',['issued',i.issued],['due',i.due],j,'Issued','Due')}</div>`;
+}
+
+/* job form */
+function blankJob(date){
+  const s=S.settings;
+  return {id:newId(),title:'',clientId:'',status:'heavy',engineer:'',role:'',start:date||today(),end:'',callTime:'',finishTime:'',venue:'',address:'',siteContact:'',sitePhone:'',po:'',notes:'',
+    items:s.defaultRate>0?[{desc:'Day rate',qty:1,unit:s.defaultUnit||'day',rate:+s.defaultRate,auto:(s.defaultUnit||'day')==='day'}]:[],gst:!!s.gstRegistered,calSync:false,payments:[],createdAt:Date.now(),_new:true};
+}
+function openJobForm(j){
+  S.draft=clone(j);const d=S.draft;
+  const nd=bookDays(d);(d.items||[]).forEach(i=>{if(i.unit==='day'&&i.auto===undefined)i.auto=(+i.qty===nd)});
+  const crew=[...new Set([...(S.settings.crew||'').split('\n').map(x=>x.trim()),...S.jobs.map(x=>x.engineer)].filter(Boolean))];
+  const f=(k,l,t='text',x='')=>`<label class="field"><span>${l}</span><input name="${k}" id="jf-${k}" type="${t}" value="${esc(d[k])}" ${x}></label>`;
+  openSheet('jobform',head(d._new?'New booking':'Edit booking',`<button class="tbtn r" type="submit" form="jobForm">Save</button>`,`<button class="tbtn" data-act="closeSheet">Cancel</button>`)+`<div class="sheet-body"><form id="jobForm" data-form="job" class="form">
+    ${f('title','Event name','text','required placeholder="e.g. Waterfront Stage"')}
+    <div class="field"><label class="field"><span>Client</span><select name="clientId" id="jf-clientId"><option value="">Select a client</option>${S.clients.map(c=>`<option value="${c.id}" ${c.id===d.clientId?'selected':''}>${esc(c.name)}</option>`).join('')}<option value="__new">+ New client…</option></select></label>
+      <button type="button" class="link" style="align-self:flex-start" data-act="ncToggle">${ic('plus')}Create new client</button></div>
+    <div id="newClientBox" hidden class="grid2"><label class="field"><span>New client name</span><input id="jf-ncName" name="ncName"></label><label class="field"><span>Client email</span><input id="jf-ncEmail" name="ncEmail" type="email"></label></div>
+    <div class="field"><span>Status</span><div class="spills" id="jfStatus">${STATUSES.map(x=>`<button type="button" class="st-${x.k}" data-act="draftStatus" data-v="${x.k}" aria-pressed="${d.status===x.k}">${x.label}</button>`).join('')}</div></div>
+    <div class="grid2">${f('start','Start date','date','required')}${f('end','End date','date')}</div>
+    <div class="grid2">${f('callTime','Start time','time')}${f('finishTime','End time','time')}</div>
+    <span class="hint" style="margin-top:-10px">Leave the times empty for an all-day booking.</span><div id="clash"></div>
+    <div class="grid2">${f('venue','Location','text','placeholder="e.g. Cape Town"')}${f('address','Address')}</div>
+    <div class="grid2"><label class="field"><span>Engineer / tech</span><input name="engineer" id="jf-engineer" list="crewList" value="${esc(d.engineer)}"><datalist id="crewList">${crew.map(c=>`<option value="${esc(c)}">`).join('')}</datalist></label>${f('role','Role','text','placeholder="FOH, monitors…"')}</div>
+    <div class="grid2">${f('siteContact','On-site contact')}${f('sitePhone','Contact phone','tel')}</div>
+    ${f('po','Client PO / reference')}
+    <hr class="sep">
+    <div class="sh"><span class="cap">Charges & line items</span><button type="button" class="link" data-act="addItem">Add row</button></div>
+    <div class="items" id="items"></div><div id="dayHint"></div>
+    <div class="chips" style="margin-top:-6px"><button type="button" class="chip" data-act="addItem" data-d="Day rate" data-u="day" data-r="${S.settings.defaultRate||''}">+ Day rate</button><button type="button" class="chip" data-act="addItem" data-d="Overtime" data-u="hour">+ Overtime</button><button type="button" class="chip" data-act="addItem" data-d="Travel" data-u="km" data-r="${S.settings.travelRate||''}">+ Travel km</button><button type="button" class="chip" data-act="addItem" data-d="Expenses (receipts attached)" data-u="flat">+ Expense</button></div>
+    <label class="switch"><span>Charge VAT (${esc(S.settings.gstRate)}%)</span><input type="checkbox" id="jf-gst" name="gst" ${d.gst?'checked':''}></label>
+    <div class="total-card" id="jfTotals"></div>
+    <label class="field"><span>Notes</span><textarea name="notes" id="jf-notes" rows="3" placeholder="Gear, parking, dress code, run sheet…">${esc(d.notes)}</textarea></label>
+    <button class="btn primary" type="submit">Save booking</button>
+  </form></div>`);
+  renderItems();checkClash();
+}
+function renderItems(){
+  const d=S.draft,box=$('#items');if(!box)return;
+  box.innerHTML=(d.items||[]).map((i,n)=>`<div class="item" data-n="${n}">
+    <input class="inp desc" id="it-d-${n}" data-item="desc" value="${esc(i.desc)}" placeholder="Description" aria-label="Description">
+    <input class="inp" id="it-q-${n}" data-item="qty" type="number" step="0.25" min="0" value="${esc(i.qty)}" aria-label="Quantity">
+    <select class="inp" id="it-u-${n}" data-item="unit" aria-label="Unit">${UNITS.map(u=>`<option ${u===i.unit?'selected':''}>${u}</option>`).join('')}</select>
+    <input class="inp" id="it-r-${n}" data-item="rate" type="number" step="0.01" min="0" value="${esc(i.rate)}" placeholder="Rate" aria-label="Rate">
+    <span class="amt">${money((+i.qty||0)*(+i.rate||0))}</span>
+    <button type="button" class="xbtn" data-act="rmItem" data-n="${n}" aria-label="Remove line">${ic('x')}</button></div>`).join('')||'<span class="hint">No charges yet. Add your day rate, overtime, travel or expenses.</span>';
+  renderDayHint();renderDraftTotals();
+}
+function renderDayHint(){
+  const d=S.draft,el=$('#dayHint');if(!el||!d)return;
+  const nd=bookDays(d),days=(d.items||[]).filter(i=>i.unit==='day'),n=`${nd} booking ${nd===1?'day':'days'}`;
+  el.innerHTML=!days.length?'':days.every(i=>i.auto)?`<span class="hint">Day rate × ${n}, counted from the start and end dates. Type a different quantity to override.</span>`
+    :`<span class="hint">Day-rate quantity set by hand.<button type="button" class="copy" data-act="matchDays">Match ${n}</button></span>`;
+}
+function syncDayQty(force){
+  const d=S.draft;if(!d)return;const nd=bookDays(d);
+  (d.items||[]).forEach(i=>{if(i.unit==='day'&&(force||i.auto)){i.qty=nd;i.auto=true}});
+  renderItems();
+}
+function renderDraftTotals(){const t=totals(S.draft),el=$('#jfTotals');if(el)el.innerHTML=`<span class="lbl">Estimated total${S.draft.gst?`<small>${money(t.sub)} + VAT ${money(t.gst)}</small>`:''}</span><span class="num">${money(t.total)}</span>`}
+function checkClash(){
+  const d=S.draft,box=$('#clash');if(!box||!d)return;
+  const e=d.end||d.start;
+  if(!d.start||!ACTIVE.includes(d.status)){box.innerHTML='';return}
+  const hits=S.jobs.filter(j=>j.id!==d.id&&ACTIVE.includes(j.status)&&j.start<=e&&jobEnd(j)>=d.start&&sameCrew(d,j));
+  box.innerHTML=hits.length?`<div class="warnbox"><b>Date clash${d.engineer?` for ${esc(d.engineer)}`:''}:</b> ${hits.map(j=>`${esc(j.title)} (${ST[j.status].label}, ${fmtRange(j.start,jobEnd(j))})`).join('; ')}. You can still save.</div>`:'';
+}
+function readJobForm(){
+  const fm=$('#jobForm'),d=S.draft;
+  ['title','start','end','callTime','finishTime','engineer','role','venue','address','siteContact','sitePhone','po','notes'].forEach(k=>{const el=fm.elements[k];if(el)d[k]=el.value.trim()});
+  d.clientId=fm.elements.clientId.value;d.gst=$('#jf-gst').checked;
+  if(d.end&&d.end<d.start)d.end=d.start;if(d.end===d.start)d.end='';
+  d.items=(d.items||[]).filter(i=>i.desc||+i.rate);
+}
+
+/* client sheets */
+function openClient(id){
+  const c=client(id);if(!c)return;const st=clientStats(c);
+  const js=S.jobs.filter(j=>j.clientId===id).slice().reverse();
+  openSheet('client',head('Client',`<button class="tbtn r" data-act="editClient" data-id="${id}">Edit</button>`)+`<div class="sheet-body">
+    <div class="profile"><span class="cav lg">${esc(initials(c.name))}</span><span><b>${esc(c.name)}</b><small>${st.n} jobs · ${money(st.billed)} booked${st.owed>0?` · <span style="color:var(--warn);font-weight:700">${money(st.owed)} owed</span>`:''}</small></span></div>
+    ${contactActs(c)}
+    <div class="card"><dl class="kv">
+      <dt>Contact</dt><dd>${esc(c.contact||'—')}</dd>
+      <dt>Email</dt><dd>${c.email?`${esc(c.email)}<button class="copy" data-act="copy" data-t="${esc(c.email)}">Copy</button>`:'—'}</dd>
+      <dt>Phone</dt><dd>${c.phone?`${esc(c.phone)}<button class="copy" data-act="copy" data-t="${esc(c.phone)}">Copy</button>`:'—'}</dd>
+      <dt>Billing address</dt><dd style="white-space:pre-wrap">${esc(c.address||'—')}</dd>
+      <dt>VAT number</dt><dd>${esc(c.abn||'—')}</dd>
+      ${c.notes?`<dt>Notes</dt><dd style="white-space:pre-wrap">${esc(c.notes)}</dd>`:''}</dl></div>
+    <button class="btn primary" data-act="newJob" data-client="${id}">${ic('plus')}New booking for ${esc(c.name)}</button>
+    <div class="sec"><span class="cap dark">Jobs</span>${js.length?`<div class="list">${js.map(jobCard).join('')}</div>`:'<span class="hint">No jobs yet.</span>'}</div>
+  </div>`);
+}
+function openClientForm(c){
+  const d=c||{id:newId(),name:'',contact:'',email:'',phone:'',address:'',abn:'',notes:'',_new:true};
+  const f=(k,l,t='text')=>`<label class="field"><span>${l}</span><input name="${k}" id="cf-${k}" type="${t}" value="${esc(d[k])}" ${k==='name'?'required':''}></label>`;
+  openSheet('clientform',head(d._new?'New client':'Edit client',`<button class="tbtn r" type="submit" form="clientForm">Save</button>`,`<button class="tbtn" data-act="closeSheet">Cancel</button>`)+`<div class="sheet-body"><form id="clientForm" data-form="client" data-id="${d.id}" data-new="${d._new?1:''}" class="form">
+    ${f('name','Company or client name')}${f('contact','Contact person')}
+    <div class="grid2">${f('email','Email for invoices','email')}${f('phone','Phone / WhatsApp','tel')}</div>
+    <label class="field"><span>Billing address</span><textarea name="address" id="cf-address" rows="2">${esc(d.address)}</textarea></label>
+    ${f('abn','Client VAT number (if VAT registered)')}
+    <label class="field"><span>Notes</span><textarea name="notes" id="cf-notes" rows="2" placeholder="Accounts contact, PO rules, preferred rates…">${esc(d.notes)}</textarea></label>
+    <button class="btn primary" type="submit">Save client</button>
+    ${d._new?'':`<button type="button" class="btn danger" data-act="askDel">Delete client</button><div class="warnbox" id="delConfirm" hidden>Delete ${esc(d.name)}? Their jobs stay, without a client.<div class="row end" style="margin-top:10px"><button type="button" class="btn sm" data-act="cancelDel">Keep</button><button type="button" class="btn sm danger solid" data-act="delClient" data-id="${d.id}">Delete client</button></div></div>`}
+  </form></div>`);
+}
+
+/* ---------- calendar (.ics) ---------- */
+// Kept in step with backend/ics.ts, which serves the subscription feed.
+const ICS_LABELS={blocked:'Blocked off',heavy:'Heavy pencil',confirmed:'Confirmed',completed:'Completed',notdone:'Not completed',cancelled:'Cancelled'};
+const icsText=v=>String(v??'').replace(/\\/g,'\\\\').replace(/\r?\n/g,'\\n').replace(/([,;])/g,'\\$1');
+function icsFold(line){const enc=new TextEncoder();let out='',cur='',n=0;for(const ch of line){const b=enc.encode(ch).length;if(n+b>74){out+=cur+'\r\n ';cur='';n=1}cur+=ch;n+=b}return out+cur}
+function icsEvent(j,c,tz,stamp){
+  const start=String(j.start||'');if(!/^\d{4}-\d{2}-\d{2}$/.test(start))return [];
+  const end=/^\d{4}-\d{2}-\d{2}$/.test(String(j.end||''))&&j.end>start?String(j.end):start;
+  const status=j.status||'heavy',label=ICS_LABELS[status]||status;
+  const call=/^\d{2}:\d{2}$/.test(String(j.callTime||''))?j.callTime:'';
+  const L=['BEGIN:VEVENT',`UID:${j.id}@mybooking360`,`DTSTAMP:${stamp}`];
+  if(call){
+    let fin=/^\d{2}:\d{2}$/.test(String(j.finishTime||''))?j.finishTime:'';
+    if(!fin){const [h,m]=call.split(':').map(Number);fin=`${String(Math.min(23,h+1)).padStart(2,'0')}:${String(m).padStart(2,'0')}`}
+    let ed=end;if(ed===start&&fin<=call)ed=addDays(ed,1);
+    L.push(`DTSTART;TZID=${tz}:${start.replace(/-/g,'')}T${call.replace(':','')}00`,`DTEND;TZID=${tz}:${ed.replace(/-/g,'')}T${fin.replace(':','')}00`);
+  }else L.push(`DTSTART;VALUE=DATE:${start.replace(/-/g,'')}`,`DTEND;VALUE=DATE:${addDays(end,1).replace(/-/g,'')}`);
+  const summary=(status==='confirmed'?'':`[${label}] `)+(j.title||'Booking')+(j.engineer?` — ${j.engineer}`:'');
+  const desc=[`Status: ${label}`,c&&`Client: ${c.name}`,j.engineer&&`Engineer / tech: ${j.engineer}${j.role?` (${j.role})`:''}`,j.siteContact&&`On-site: ${j.siteContact} ${j.sitePhone||''}`.trim(),j.po&&`PO / ref: ${j.po}`,j.notes&&`\n${j.notes}`,'\nManaged in My Booking 360'].filter(Boolean).join('\n');
+  const loc=[j.venue,j.address].filter(Boolean).join(', ');
+  L.push(`SUMMARY:${icsText(summary)}`,`DESCRIPTION:${icsText(desc)}`);if(loc)L.push(`LOCATION:${icsText(loc)}`);
+  L.push(`STATUS:${status==='cancelled'?'CANCELLED':['heavy','blocked'].includes(status)?'TENTATIVE':'CONFIRMED'}`,`TRANSP:${['cancelled','notdone'].includes(status)?'TRANSPARENT':'OPAQUE'}`,'END:VEVENT');
+  return L;
+}
+function buildIcs(jobs,timeZone){
+  const tz=/^[A-Za-z_]+(\/[A-Za-z0-9_+-]+)+$/.test(timeZone||'')?timeZone:'Africa/Johannesburg';
+  const stamp=new Date().toISOString().replace(/[-:]/g,'').replace(/\.\d{3}/,'');
+  const L=['BEGIN:VCALENDAR','VERSION:2.0','PRODID:-//My Booking 360//EN','CALSCALE:GREGORIAN','METHOD:PUBLISH'];
+  jobs.forEach(j=>L.push(...icsEvent(j,client(j.clientId),tz,stamp)));
+  L.push('END:VCALENDAR');
+  return L.map(icsFold).join('\r\n')+'\r\n';
+}
+function addToCalendar(j){
+  if(!j)return;
+  const name=`${String(j.title||'booking').replace(/[^\w\- ]+/g,'').trim()||'booking'}.ics`;
+  downloadBlob(name,new Blob([buildIcs([j],S.settings.timeZone)],{type:'text/calendar'}));
+  toast('Calendar file saved. Open it to add the booking.');
+}
+const feedUrl=()=>S.settings.calToken?`${location.origin}/api/cal/${S.settings.calToken}.ics`:'';
+function openCalSettings(){
+  const u=feedUrl(),s=S.settings;
+  openSheet('settings',head('Calendar & sync')+`<div class="sheet-body">
+    <div class="card"><h3>See bookings in your phone's calendar</h3>
+      <span class="hint">Subscribe once and every booking, with its status, shows in the Calendar app on your iPhone, Mac or Google Calendar. Changes appear within an hour or so.</span>
+      ${u?`<div class="field"><span>Your private calendar link</span><div class="calurl">${esc(u)}</div></div>
+        <div class="row"><a class="btn primary" href="${esc(u.replace(/^https?:/,'webcal:'))}">Subscribe on this device</a><button class="btn" data-act="copy" data-t="${esc(u)}">Copy link</button></div>
+        <span class="hint">Google Calendar: Other calendars → From URL, then paste the link. Keep it private: anyone with the link can see your bookings.</span>
+        <button class="link danger" style="align-self:flex-start" data-act="calLink">Reset link</button>`
+      :`<button class="btn primary" data-act="calLink">Create my calendar link</button>`}
+    </div>
+    <form class="form" id="settingsForm" data-form="settings"><label class="field"><span>Calendar time zone</span><input name="timeZone" id="set-timeZone" value="${esc(s.timeZone)}"></label><button class="btn primary" type="submit">Save</button></form>
+    <div class="card"><h3>One booking at a time</h3><span class="hint">Open a booking, tap ••• and choose “Add to calendar” to save it as a calendar file.</span></div>
+  </div>`);
+}
+
+/* ---------- backup ---------- */
+function exportBackup(){
+  const data={app:'my-booking-360',version:2,exportedAt:new Date().toISOString(),settings:S.settings,clients:S.clients,jobs:S.jobs};
+  downloadBlob(`my-booking-360-backup-${today()}.json`,new Blob([JSON.stringify(data,null,2)],{type:'application/json'}));
+}
+async function importBackup(file){
+  if(!file)return;
+  let d;try{d=JSON.parse(await file.text())}catch{toast('That file is not a My Booking 360 backup.',1);return}
+  const clean=a=>(Array.isArray(a)?a:[]).filter(x=>x&&typeof x==='object'&&typeof x.id==='string').map(x=>{const y={...x};delete y.example;delete y._new;return y});
+  const C=clean(d.clients).filter(c=>c.name),J=clean(d.jobs).filter(j=>j.title);
+  if(!C.length&&!J.length&&!d.settings){toast('No bookings or clients found in that file.',1);return}
+  if(!confirm(`Import ${C.length} clients and ${J.length} bookings? Records that are already here are updated, not duplicated.`))return;
+  toast('Importing…');
+  try{
+    for(let i=0;i<C.length;i+=50)await api.post('/api/import',{clients:C.slice(i,i+50)});
+    for(let i=0;i<J.length;i+=25)await api.post('/api/import',{jobs:J.slice(i,i+25)});
+    if(d.settings&&typeof d.settings==='object'){const s={...d.settings};delete s.calToken;await api.put('/api/settings',{...S.settings,...s})}
+    await loadData();closeSheet();render();toast(`Imported ${C.length} clients and ${J.length} bookings`);
+  }catch(e){console.error(e);toast('The import stopped part way. Try again: nothing will be duplicated.',1)}
+}
+
+/* invoice pdf */
+function buildPdf(j,kind='invoice'){
+  const {jsPDF}=window.jspdf;const doc=new jsPDF({unit:'mm',format:'a4'});
+  const Q=kind==='quote',s=S.settings,c=client(j.clientId)||{},t=totals(j),i=Q?j.quote:j.invoice,W=210,L=18,R=W-18;
+  const cur=v=>money(v).replace(/[\u00a0\u202f]/g,' ');
+  let y=22;
+  doc.setTextColor(20,26,42);doc.setFont('helvetica','bold');doc.setFontSize(18);doc.text(s.businessName||s.ownerName||'Your business',L,y);
+  doc.setFontSize(20);doc.text(Q?'QUOTATION':s.gstRegistered?'TAX INVOICE':'INVOICE',R,y,{align:'right'});
+  doc.setFont('helvetica','normal');doc.setFontSize(9.5);doc.setTextColor(70,81,102);
+  let ly=y+6;[s.businessName&&s.ownerName?s.ownerName:'',...(s.address||'').split('\n'),s.abn&&`VAT no. ${s.abn}`,s.regNo&&`Reg. no. ${s.regNo}`,s.email,s.phone].filter(Boolean).forEach(l=>{doc.text(String(l),L,ly);ly+=4.6});
+  let ry=y+7;(Q?[['Quote no.',i.no],['Date',fmtLong(i.issued)],['Valid until',fmtLong(i.validUntil)],j.po&&['Your ref',j.po]]:[['Invoice no.',i.no],['Issued',fmtLong(i.issued)],['Due',fmtLong(i.due)],j.po&&['Your ref',j.po]]).filter(Boolean).forEach(([k,v])=>{doc.setTextColor(118,130,151);doc.text(k,R-48,ry);doc.setTextColor(20,26,42);doc.text(String(v),R,ry,{align:'right'});ry+=5});
+  y=Math.max(ly,ry)+8;
+  doc.setDrawColor(211,218,229);doc.line(L,y,R,y);y+=8;
+  doc.setFontSize(8.5);doc.setTextColor(118,130,151);doc.text(Q?'PREPARED FOR':'BILL TO',L,y);doc.text('JOB',110,y);y+=5;
+  doc.setFontSize(10);doc.setTextColor(20,26,42);
+  let by=y;[c.name,c.contact,...(c.address||'').split('\n'),c.abn&&`VAT no. ${c.abn}`,c.email].filter(Boolean).forEach(l=>{doc.text(String(l),L,by);by+=4.8});
+  let jy=y;doc.splitTextToSize(j.title||'',R-110).forEach(l=>{doc.setFont('helvetica','bold');doc.text(l,110,jy);jy+=4.8});doc.setFont('helvetica','normal');
+  [fmtRange(j.start,jobEnd(j)),[j.venue,j.address].filter(Boolean).join(', '),j.engineer&&`Engineer / tech: ${j.engineer}${j.role?' ('+j.role+')':''}`].filter(Boolean).forEach(l=>{doc.splitTextToSize(l,R-110).forEach(x=>{doc.text(x,110,jy);jy+=4.8})});
+  y=Math.max(by,jy)+8;
+  doc.setFillColor(232,236,243);doc.rect(L,y-5,R-L,8,'F');doc.setFontSize(8.5);doc.setTextColor(70,81,102);
+  doc.text('DESCRIPTION',L+2,y);doc.text('QTY',125,y,{align:'right'});doc.text('RATE',155,y,{align:'right'});doc.text('AMOUNT',R-2,y,{align:'right'});y+=8;
+  doc.setFontSize(10);doc.setTextColor(20,26,42);
+  (j.items||[]).forEach(it=>{const lines=doc.splitTextToSize(it.desc||'',95);if(y+lines.length*5>265){doc.addPage();y=22}
+    doc.text(lines,L+2,y);doc.text(`${it.qty} ${it.unit}`,125,y,{align:'right'});doc.text(cur(it.rate),155,y,{align:'right'});doc.text(cur((+it.qty||0)*(+it.rate||0)),R-2,y,{align:'right'});
+    y+=lines.length*5+2;doc.setDrawColor(232,236,243);doc.line(L,y-3,R,y-3)});
+  y+=4;const tl=(k,v,b)=>{doc.setFont('helvetica',b?'bold':'normal');doc.text(k,150,y,{align:'right'});doc.text(v,R-2,y,{align:'right'});y+=6};
+  tl('Subtotal',cur(t.sub));if(j.gst)tl(`VAT (${t.rate}%)`,cur(t.gst));tl(j.gst?'Total incl. VAT':'Total',cur(t.total),1);
+  if(!Q&&t.paid){tl('Paid',`-${cur(t.paid)}`);tl('Balance due',cur(t.balance),1)}
+  if(!j.gst&&s.gstRegistered===false){doc.setFontSize(8.5);doc.setTextColor(118,130,151);doc.text('No VAT has been charged.',R-2,y,{align:'right'});y+=6}
+  y+=6;if(y>240){doc.addPage();y=22}
+  doc.setFont('helvetica','bold');doc.setFontSize(10);doc.setTextColor(20,26,42);doc.text(Q?'Accepting this quote':'How to pay',L,y);y+=5;doc.setFont('helvetica','normal');doc.setFontSize(9.5);doc.setTextColor(70,81,102);
+  (Q?[`This quote is valid until ${fmtLong(i.validUntil)}.`,`To accept, reply to this email or contact us quoting ${i.no}.`,`Dates are held as provisional until the quote is accepted.`,`Payment terms: ${s.termsDays} days from invoice.`]:[s.accountName&&`Account name: ${s.accountName}`,s.bankName&&`Bank: ${s.bankName}`,s.bsb&&`Branch code: ${s.bsb}`,s.accountNo&&`Account no.: ${s.accountNo}`,s.accountType&&`Account type: ${s.accountType}`,s.swift&&`SWIFT: ${s.swift}`,`Reference: ${i.no}`,`Please pay by ${fmtLong(i.due)}.`]).filter(Boolean).forEach(l=>{doc.text(l,L,y);y+=4.6});
+  if(s.invoiceNotes){y+=4;doc.splitTextToSize(s.invoiceNotes,R-L).forEach(l=>{doc.text(l,L,y);y+=4.6})}
+  return doc;
+}
+function invFileName(j,kind){return `${(kind==='quote'?j.quote:j.invoice).no} ${(client(j.clientId)?.name||'invoice').replace(/[^\w\- ]+/g,'')}.pdf`}
+function openEmail(j,kind='invoice'){
+  const Q=kind==='quote',c=client(j.clientId)||{},t=totals(j),i=Q?j.quote:j.invoice,s=S.settings,rem=!Q&&!!i.sentAt&&t.balance>0;
+  const who=s.ownerName||s.businessName||'';
+  const msg=Q?`Hi ${c.contact||c.name||''},\n\nThank you for the enquiry. Please find attached quote ${i.no} for ${j.title} (${fmtRange(j.start,jobEnd(j))}).\n\nTotal: ${money(t.total)}${j.gst?' incl. VAT':''}\nValid until: ${fmtLong(i.validUntil)}\n\nTo confirm the booking, simply reply to this email.\n\nKind regards,\n${who}`
+    :rem?`Hi ${c.contact||c.name||''},\n\nA friendly reminder that invoice ${i.no} for ${j.title} (${fmtRange(j.start,jobEnd(j))}) has ${money(t.balance)} outstanding, due ${fmtLong(i.due)}. A copy is attached.\n\nIf you have already paid, thank you, please ignore this.\n\nKind regards,\n${who}`
+    :`Hi ${c.contact||c.name||''},\n\nPlease find attached invoice ${i.no} for ${j.title} (${fmtRange(j.start,jobEnd(j))}).\n\nAmount due: ${money(t.balance)}\nDue date: ${fmtLong(i.due)}\n\nPayment details are on the invoice. Please use ${i.no} as the reference.\n\nThanks,\n${who}`;
+  openSheet('email',head(Q?'Email quote':rem?'Payment reminder':'Email invoice')+`<div class="sheet-body"><form id="emailForm" data-form="email" data-id="${j.id}" data-kind="${kind}" data-rem="${rem?1:''}" class="card">
+    <label class="field"><span>To</span><input name="to" id="em-to" type="email" required value="${esc(c.email||'')}" placeholder="client@example.com"></label>
+    <label class="field"><span>CC (optional)</span><input name="cc" id="em-cc" type="email"></label>
+    <label class="field"><span>Subject</span><input name="subject" id="em-subject" required value="${esc(Q?`Quote ${i.no} – ${j.title}`:`${rem?'Reminder: ':''}Invoice ${i.no} – ${j.title}`)}"></label>
+    <label class="field"><span>Message</span><textarea name="body" id="em-body" rows="11">${esc(msg)}</textarea></label>
+    <span class="hint">Attached: ${esc(invFileName(j,kind))} · ${Q?money(t.total)+' quoted':money(t.balance)+' due'}. “Share PDF” opens your phone's share sheet (Mail, Gmail, WhatsApp) with the PDF attached. “Email app” starts an email to the client and saves the PDF for you to attach.</span>
+  </form></div><div class="sheet-foot"><button class="btn" data-act="mailtoDoc" data-id="${j.id}">Email app</button><button class="btn primary" type="submit" form="emailForm" id="sendBtn">Share PDF</button></div>`);
+}
+function docPdf(j,kind){return {name:invFileName(j,kind),blob:buildPdf(j,kind).output('blob')}}
+async function markDocSent(j,fm,to){
+  const fresh=clone(S.jobs.find(x=>x.id===j.id)),rem=!!fm.dataset.rem;
+  if(fm.dataset.kind==='quote'){fresh.quote.sentAt=Date.now();fresh.quote.sentTo=to}
+  else if(rem){fresh.invoice.reminders=[...(fresh.invoice.reminders||[]),Date.now()]}
+  else{fresh.invoice.sentAt=Date.now();fresh.invoice.sentTo=to}
+  await store.saveJob(fresh);
+}
+async function busy(btn,fn){if(!btn)return fn();const old=btn.innerHTML;btn.disabled=true;btn.innerHTML='<span class="spin"></span>';try{return await fn()}finally{if(btn.isConnected){btn.disabled=false;btn.innerHTML=old}}}
+
+/* csv */
+const csvCell=v=>{const s=String(v??'');return /[",\n]/.test(s)?`"${s.replace(/"/g,'""')}"`:s};
+function downloadBlob(filename,data){const blob=data instanceof Blob?data:new Blob([data],{type:filename.endsWith('.csv')?'text/csv':'text/plain'});const u=URL.createObjectURL(blob);const a=document.createElement('a');a.href=u;a.download=filename;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),5000)}
+async function saveFile(filename,data){downloadBlob(filename,data)}
+
+/* ---------- actions ---------- */
+const ACT={
+  tab:d=>{S.view=d.v;closeSheet();renderTabs();render();window.scrollTo(0,0)},
+  jobFilterGo:d=>{S.jobFilter=d.v;S.view='jobs';renderTabs();render();window.scrollTo(0,0)},
+  attnAll:()=>{S.attnAll=!S.attnAll;render()},
+  moneyAll:()=>{S.moneyAll=!S.moneyAll;render()},
+  scrollCar:d=>{const c=$('#car');if(c)c.scrollBy({left:(+d.n)*((c.firstElementChild?.offsetWidth||280)+14),behavior:'smooth'})},
+  az:d=>{$('#L-'+d.v)?.scrollIntoView({behavior:'smooth',block:'start'})},
+  setGroup:d=>openSettings(d.v),
+  toggleMenu:(d,b)=>{const m=$('#moreMenu');m.hidden=!m.hidden;b.setAttribute('aria-expanded',String(!m.hidden))},
+  ncToggle:()=>{const sel=$('#jf-clientId');sel.value='__new';$('#newClientBox').hidden=false;$('#jf-ncName').focus()},
+  newJob:d=>{const j=blankJob(d.date);if(d.client)j.clientId=d.client;openJobForm(j)},
+  openJob:d=>openJob(d.id),
+  editJob:d=>{const j=S.jobs.find(x=>x.id===d.id);if(j)openJobForm(j)},
+  dupJob:d=>{const j=clone(S.jobs.find(x=>x.id===d.id));Object.assign(j,{id:newId(),status:'heavy',invoice:null,quote:null,payments:[],calEventId:null,calSyncedAt:null,example:false,createdAt:Date.now(),_new:true});delete j.invoice;delete j.quote;openJobForm(j)},
+  closeSheet:()=>closeSheet(),
+  copy:d=>copyText(d.t),
+  jobFilter:d=>{S.jobFilter=d.v;render()},
+  calDay:d=>{S.calSel=d.d;const m=d.d.slice(0,7)+'-01';if(m!==S.calMonth)S.calMonth=m;render()},
+  calMove:d=>{const m=pd(S.calMonth);m.setMonth(m.getMonth()+ +d.n);S.calMonth=iso(m);render()},
+  calToday:()=>{const n=new Date();S.calMonth=iso(new Date(n.getFullYear(),n.getMonth(),1));S.calSel=today();render()},
+  draftStatus:(d,b)=>{S.draft.status=d.v;b.parentElement.querySelectorAll('button').forEach(x=>x.setAttribute('aria-pressed',x===b));checkClash()},
+  addItem:d=>{S.draft.items=S.draft.items||[];const u=d.u||'day',auto=u==='day';S.draft.items.push({desc:d.d||'',qty:auto?bookDays(S.draft):1,unit:u,rate:d.r?+d.r:'',auto});renderItems();const n=S.draft.items.length-1;$(`#it-${d.d?'r':'d'}-${n}`)?.focus()},
+  rmItem:d=>{S.draft.items.splice(+d.n,1);renderItems()},
+  matchDays:()=>syncDayQty(true),
+  setStatus:async(d,b)=>{const j=clone(S.jobs.find(x=>x.id===d.id));if(!j||j.status===d.v)return;j.status=d.v;await store.saveJob(j);toast(`Marked ${ST[d.v].label.toLowerCase()}`)},
+  syncCal:d=>addToCalendar(S.jobs.find(x=>x.id===d.id)),
+  makeInvoice:async(d,b)=>{const j=clone(S.jobs.find(x=>x.id===d.id)),s=S.settings,no=`${s.invoicePrefix||''}${s.nextInvoiceNo}`;
+    j.invoice={no,issued:today(),due:addDays(today(),+s.termsDays||0),gstRate:+s.gstRate||0,sentAt:null,reminders:[]};
+    await busy(b,async()=>{await store.saveSettings({nextInvoiceNo:(+s.nextInvoiceNo||0)+1});await store.saveJob(j)});toast(`Invoice ${no} created`);if(d.send&&window.jspdf)openEmail(j)},
+  markSent:async d=>{const j=clone(S.jobs.find(x=>x.id===d.id));j.invoice.sentAt=Date.now();await store.saveJob(j);toast('Marked as sent')},
+  pdfInv:async d=>{const j=S.jobs.find(x=>x.id===d.id),k=d.k||'invoice';if(!window.jspdf){toast('The PDF maker did not load. Reload and try again.',1);return}await saveFile(invFileName(j,k),buildPdf(j,k).output('blob'))},
+  sharePdf:async d=>{const j=S.jobs.find(x=>x.id===d.id),k=d.k||'invoice';if(!window.jspdf){toast('The PDF maker did not load. Reload and try again.',1);return}
+    const name=invFileName(j,k),blob=buildPdf(j,k).output('blob');let file=null;try{file=new File([blob],name,{type:'application/pdf'})}catch{}
+    if(file&&navigator.canShare&&navigator.canShare({files:[file]})){try{await navigator.share({files:[file],title:name.replace(/\.pdf$/,'')});return}catch(e){if(e?.name==='AbortError')return}}
+    toast('Sharing is not available here, so the PDF is being saved instead.');await saveFile(name,blob)},
+  makeQuote:async(d,b)=>{const j=clone(S.jobs.find(x=>x.id===d.id)),s=S.settings,no=`${s.quotePrefix||''}${s.nextQuoteNo||1001}`;
+    j.quote={no,issued:today(),validUntil:addDays(today(),+s.quoteValidDays||30),sentAt:null};
+    await busy(b,async()=>{await store.saveSettings({nextQuoteNo:(+s.nextQuoteNo||1001)+1});await store.saveJob(j)});toast(`Quote ${no} created`)},
+  emailQuote:d=>{const j=S.jobs.find(x=>x.id===d.id);if(!window.jspdf){toast('The PDF maker did not load. Reload and try again.',1);return}openEmail(j,'quote')},
+  markQuoteSent:async d=>{const j=clone(S.jobs.find(x=>x.id===d.id));j.quote.sentAt=Date.now();await store.saveJob(j);toast('Quote marked as sent')},
+  acceptQuote:async d=>{const j=clone(S.jobs.find(x=>x.id===d.id));j.quote.acceptedAt=Date.now();const up=['heavy','blocked'].includes(j.status);if(up)j.status='confirmed';
+    await store.saveJob(j);toast(up?'Quote accepted. Booking confirmed.':'Quote accepted')},
+  emailInv:d=>{const j=S.jobs.find(x=>x.id===d.id);if(!window.jspdf){toast('The PDF maker did not load. Reload and try again.',1);return}openEmail(j)},
+  mailtoDoc:async d=>{const fm=$('#emailForm');if(!fm.reportValidity())return;const j=S.jobs.find(x=>x.id===d.id),k=fm.dataset.kind||'invoice',{name,blob}=docPdf(j,k);
+    const to=fm.elements.to.value.trim(),cc=fm.elements.cc.value.trim();
+    downloadBlob(name,blob);
+    const q=[`subject=${encodeURIComponent(fm.elements.subject.value.trim())}`,`body=${encodeURIComponent(`${fm.elements.body.value}\n\n[Attach ${name}]`)}`];if(cc)q.unshift(`cc=${encodeURIComponent(cc)}`);
+    window.location.href=`mailto:${to}?${q.join('&')}`;
+    await markDocSent(j,fm,to);toast('PDF saved. Attach it to the email that opened.')},
+  signIn:async(d,b)=>{b.disabled=true;try{await auth.signInWithRedirect()}catch(e){b.disabled=false;toast(e?.code==='auth/storage-unavailable'?'Turn on website data for this site in your browser settings, then try again.':'Could not open sign-in. Try again.',1)}},
+  signOut:async()=>{try{await auth.signOut()}catch{}location.reload()},
+  reload:()=>location.reload(),
+  exportBackup:()=>exportBackup(),
+  calLink:async(d,b)=>{if(S.settings.calToken&&!confirm('Reset the link? Calendars using the old link stop updating.'))return;
+    await busy(b,async()=>{try{const r=await api.post('/api/cal-token');S.settings={...S.settings,calToken:r.data.token};openCalSettings();toast('Calendar link ready')}catch(e){apiErr(e)}})},
+  showPay:()=>{$('#payForm').hidden=false;$('#pay-amount').focus()},
+  hidePay:()=>{$('#payForm').hidden=true},
+  delPay:async d=>{const j=clone(S.jobs.find(x=>x.id===d.id));j.payments=(j.payments||[]).filter(p=>p.id!==d.p);await store.saveJob(j);toast('Payment removed')},
+  askDel:()=>{const m=$('#moreMenu');if(m)m.hidden=true;$('#delConfirm').hidden=false;$('#delConfirm').scrollIntoView({block:'nearest'})},
+  cancelDel:()=>{$('#delConfirm').hidden=true},
+  delJob:async(d,b)=>{const j=S.jobs.find(x=>x.id===d.id);await busy(b,async()=>{
+    await store.deleteJob(d.id)});closeSheet();toast('Booking deleted')},
+  newClient:()=>openClientForm(),
+  openClient:d=>openClient(d.id),
+  editClient:d=>openClientForm(clone(client(d.id))),
+  delClient:async d=>{await store.deleteClient(d.id);closeSheet();toast('Client deleted')},
+  clearExamples:async(d,b)=>{await busy(b,async()=>{for(const j of S.jobs.filter(x=>x.example))await store.deleteJob(j.id);for(const c of S.clients.filter(x=>x.example))await store.deleteClient(c.id)});toast('Examples removed')},
+  exportJobs:()=>{const rows=[['Start','End','Job','Client','Engineer','Role','Venue','Status','PO','Subtotal','VAT','Total','Invoice','Issued','Due','Paid','Balance']];
+    S.jobs.forEach(j=>{const t=totals(j);rows.push([j.start,jobEnd(j),j.title,client(j.clientId)?.name||'',j.engineer,j.role,j.venue,ST[j.status]?.label,j.po,t.sub,t.gst,t.total,j.invoice?.no||'',j.invoice?.issued||'',j.invoice?.due||'',t.paid,j.invoice?t.balance:''])});
+    saveFile(`my-booking-360-jobs-${today()}.csv`,rows.map(r=>r.map(csvCell).join(',')).join('\n'))},
+  exportPays:()=>{const rows=[['Date','Amount','Method','Note','Invoice','Job','Client']];
+    S.jobs.forEach(j=>(j.payments||[]).forEach(p=>rows.push([p.date,p.amount,p.method,p.note,j.invoice?.no||'',j.title,client(j.clientId)?.name||''])));
+    saveFile(`my-booking-360-payments-${today()}.csv`,rows.map(r=>r.map(csvCell).join(',')).join('\n'))},
+};
+document.addEventListener('click',e=>{const mm=$('#moreMenu');if(mm&&!mm.hidden&&!e.target.closest('#moreMenu,[data-act=toggleMenu]'))mm.hidden=true;const b=e.target.closest('[data-act]');if(!b)return;if(b.tagName==='A')return;const f=ACT[b.dataset.act];if(f){e.preventDefault();f(b.dataset,b,e)}});
+$('#sheet').addEventListener('click',e=>{if(e.target.id==='sheet')closeSheet()});
+document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!$('#sheet').hidden)closeSheet()});
+document.addEventListener('input',e=>{
+  const t=e.target;
+  if(t.id==='jobSearch'){S.search=t.value;const pos=t.selectionStart;render();const n=$('#jobSearch');n.focus();n.setSelectionRange(pos,pos)}
+  else if(t.id==='clientSearch'){S.clientSearch=t.value;const pos=t.selectionStart;render();const n=$('#clientSearch');n.focus();n.setSelectionRange(pos,pos)}
+  else if(t.dataset.item&&S.draft){const row=t.closest('.item'),n=+row.dataset.n,it=S.draft.items[n];it[t.dataset.item]=t.dataset.item==='desc'||t.dataset.item==='unit'?t.value:(t.value===''?'':+t.value);
+    if(t.dataset.item==='qty')it.auto=false;
+    if(t.dataset.item==='unit'){it.auto=t.value==='day';if(it.auto){it.qty=bookDays(S.draft);row.querySelector('[data-item=qty]').value=it.qty}}
+    renderDayHint();row.querySelector('.amt').textContent=money((+it.qty||0)*(+it.rate||0));renderDraftTotals()}
+  else if(S.draft&&t.form?.id==='jobForm'&&['start','end','engineer'].includes(t.name)){S.draft[t.name]=t.value;checkClash();if(t.name!=='engineer')syncDayQty()}
+});
+document.addEventListener('change',async e=>{
+  const t=e.target;
+  if(t.id==='jf-gst'&&S.draft){S.draft.gst=t.checked;renderDraftTotals()}
+  if(t.id==='jf-clientId'){$('#newClientBox').hidden=t.value!=='__new';if(t.value==='__new')$('#jf-ncName').focus()}
+  if(t.id==='importFile'){importBackup(t.files[0]);t.value='';return}
+  if(t.dataset.actChange==='invDate'&&t.value){const j=clone(S.jobs.find(x=>x.id===t.dataset.id)),doc=t.dataset.doc||'invoice';j[doc][t.dataset.k]=t.value;await store.saveJob(j);toast(doc==='quote'?'Quote date saved':'Invoice date saved')}
+});
+document.addEventListener('submit',async e=>{
+  const fm=e.target,kind=fm.dataset.form;if(!kind)return;e.preventDefault();
+  const btns=[...fm.querySelectorAll('button[type=submit]'),...(fm.id?document.querySelectorAll(`button[form="${fm.id}"]`):[])];btns.forEach(b=>b.disabled=true);
+  try{
+  if(kind==='job'){
+    readJobForm();const d=S.draft;
+    if(d.clientId==='__new'){const name=$('#jf-ncName').value.trim();if(!name){toast('Enter the new client name.',1);$('#jf-ncName').focus();return}
+      const c={id:newId(),name,email:$('#jf-ncEmail').value.trim(),contact:'',phone:'',address:'',abn:'',notes:''};await store.saveClient(c);d.clientId=c.id}
+    const isNew=!!d._new;delete d._new;const job=clone(d);await store.saveJob(job);
+    closeSheet();toast(isNew?'Booking saved':'Changes saved');
+    if(S.view!=='cal'&&S.view!=='jobs'&&S.view!=='home'){}
+    setTimeout(()=>openJob(job.id),50);
+  }else if(kind==='client'){
+    const c={id:fm.dataset.id};['name','contact','email','phone','address','abn','notes'].forEach(k=>c[k]=fm.elements[k].value.trim());
+    const prev=client(c.id);await store.saveClient({...(prev||{}),...c,example:prev?.example||false});closeSheet();toast('Client saved');openClient(c.id);
+  }else if(kind==='settings'){
+    const v={};[...fm.elements].forEach(el=>{if(!el.name)return;v[el.name]=el.type==='checkbox'?el.checked:el.type==='number'?(el.value===''?0:+el.value):el.value.trim()});
+    await store.saveSettings(v);toast('Settings saved');if($('#sheetCard').dataset.kind==='settings')closeSheet();
+  }else if(kind==='payment'){
+    const j=clone(S.jobs.find(x=>x.id===fm.dataset.id));j.payments=j.payments||[];
+    j.payments.push({id:newId(),amount:r2(fm.elements.amount.value),date:fm.elements.date.value,method:fm.elements.method.value,note:fm.elements.note.value.trim()});
+    j.payments.sort((a,b)=>a.date.localeCompare(b.date));
+    const t=totals(j);if(j.invoice&&t.balance<=0&&j.status==='confirmed')j.status='completed';
+    await store.saveJob(j);toast(t.balance<=0&&t.total>0?'Payment saved. Paid in full.':`Payment saved. ${money(t.balance)} still owing.`);
+  }else if(kind==='email'){
+    const j=S.jobs.find(x=>x.id===fm.dataset.id),k=fm.dataset.kind||'invoice',{name,blob}=docPdf(j,k);
+    const to=fm.elements.to.value.trim(),subject=fm.elements.subject.value.trim(),body=fm.elements.body.value;
+    let file=null;try{file=new File([blob],name,{type:'application/pdf'})}catch{}
+    if(!(file&&navigator.canShare&&navigator.canShare({files:[file]}))){toast('Sharing is not available on this device. Use “Email app” instead.',1);return}
+    try{await navigator.share({files:[file],title:subject,text:body})}catch(err){if(err?.name!=='AbortError')toast('Sharing did not work here. Use “Email app” instead.',1);return}
+    await markDocSent(j,fm,to);toast(`${k==='quote'?'Quote':'Invoice'} shared`);openJob(j.id);
+  }}catch(err){console.error(err)}finally{btns.forEach(b=>{if(b.isConnected)b.disabled=false})}
+});
+boot();

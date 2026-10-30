@@ -1,0 +1,10 @@
+{
+  "name": "My Booking 360",
+  "short_name": "Booking 360",
+  "description": "Bookings, quotes, invoices and payments for engineers and techs.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#FFF6EE",
+  "theme_color": "#FFF6EE"
+}

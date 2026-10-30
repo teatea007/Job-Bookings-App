@@ -1,0 +1,106 @@
+[
+  {
+    "name": "Sign in, add a client and a 3-day booking",
+    "sanity": true,
+    "viewport": "mobile",
+    "covers": [
+      "sign-in",
+      "client create",
+      "booking create",
+      "day rate times booking days",
+      "VAT total",
+      "database persistence after reload",
+      "GET/PUT /api/clients and /api/jobs"
+    ],
+    "description": "Verifies a signed-in user can save a client and a multi-day booking whose day rate is multiplied by the booking days, and that both survive a reload.",
+    "steps": [
+      "Sign in",
+      "Open the Clients tab, tap the add-client button, enter Acme Events as the company name and save",
+      "Open the Jobs tab and tap the round + button",
+      "Enter FOH Awards Night as the event name, choose Acme Events as the client, set the start date to 2026-12-01 and the end date to 2026-12-03",
+      "Tap 'Add row', enter Day rate as the description and 3500 as the rate",
+      "Tap Save booking",
+      "Reload the page and open the Jobs tab"
+    ],
+    "expected": "A booking card named FOH Awards Night with client Acme Events shows R 12 075,00 (3 days at R 3 500,00 plus 15% VAT) after the reload."
+  },
+  {
+    "name": "Block a booking without an event name",
+    "viewport": "mobile",
+    "covers": [
+      "required event name validation",
+      "invalid-write guardrail"
+    ],
+    "description": "Verifies the booking form will not save without an event name.",
+    "steps": [
+      "Sign in",
+      "Open the Jobs tab and tap the round + button",
+      "Leave the event name empty",
+      "Tap Save booking"
+    ],
+    "expected": "The form stays open with the event name field flagged as required and no booking card appears in the Jobs list."
+  },
+  {
+    "name": "Quote, accept, invoice and record full payment",
+    "viewport": "desktop",
+    "covers": [
+      "quote creation",
+      "client accepted confirms booking",
+      "invoice creation",
+      "payment recording",
+      "settings next number",
+      "PUT /api/settings",
+      "full payment completes the booking"
+    ],
+    "setup": [
+      "Sign in and create a booking named Wedding PA with start date 2026-12-10 and one charge line 'PA hire' with quantity 1 and rate 5000"
+    ],
+    "description": "Verifies the quote-to-paid workflow on one booking and that the results persist.",
+    "steps": [
+      "Open the Wedding PA booking",
+      "Tap Create quote",
+      "Tap Client accepted",
+      "Tap 'Generate & send', then close the email sheet",
+      "Open the Wedding PA booking again, tap Record payment and save the suggested amount",
+      "Reload the page and open the Wedding PA booking"
+    ],
+    "expected": "The booking shows status Completed, a quote card with an Accepted badge, an invoice card with a Paid badge, and a recorded payment of R 5 750,00."
+  },
+  {
+    "name": "Delete a booking after confirming",
+    "viewport": "desktop",
+    "covers": [
+      "booking delete",
+      "destructive-action confirmation",
+      "DELETE /api/jobs"
+    ],
+    "setup": [
+      "Sign in and create a booking named Delete Me with start date 2026-12-15"
+    ],
+    "description": "Verifies a booking is only removed after the delete confirmation and stays removed.",
+    "steps": [
+      "Open the Delete Me booking",
+      "Open the more-actions menu (three dots) and choose Delete booking",
+      "Tap Delete booking in the confirmation box",
+      "Reload the page and open the Jobs tab with the All jobs filter"
+    ],
+    "expected": "No booking named Delete Me is listed after the reload."
+  },
+  {
+    "name": "Create a calendar subscription link",
+    "viewport": "mobile",
+    "covers": [
+      "calendar feed link",
+      "POST /api/cal-token",
+      "GET /api/cal/:file",
+      "settings pages"
+    ],
+    "description": "Verifies a user can create a private calendar subscription link from Settings.",
+    "steps": [
+      "Sign in",
+      "Open the Settings tab and tap Calendar & sync",
+      "Tap Create my calendar link"
+    ],
+    "expected": "A private calendar link ending in .ics is shown with 'Subscribe on this device' and 'Copy link' buttons."
+  }
+]
