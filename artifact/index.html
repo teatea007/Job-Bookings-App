@@ -1,0 +1,959 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>My Booking 360</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<meta name="apple-mobile-web-app-title" content="My Booking 360">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@75..100,500..800&family=IBM+Plex+Mono:wght@500&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+/* Layout: one narrow call-sheet column, sticky header, thumb-reach tab bar; status colour is the main signal. */
+:root{
+  /* Light tropical palette: warm ivory paper, lagoon teal accent, orchid / mango / jade / hibiscus status colours. */
+  --bg:#FFF8F1; --surface:#FFFFFF; --surface-2:#FDEFE4; --line:#F1DED0;
+  --ink:#2B1D30; --ink-2:#5E4C64; --ink-3:#8F7E96;
+  --accent:#08807C; --accent-ink:#FFFFFF; --accent-soft:#D9F4F1;
+  --st-blocked:#8A4BC2; --st-heavy:#C46A00; --st-confirmed:#178A50; --st-completed:#2667C9; --st-notdone:#D63A55; --st-cancelled:#9A8F9E;
+  --good:#178A50; --warn:#C46A00; --bad:#D63A55;
+  --tropic:linear-gradient(120deg,#FF6F61 0%,#FFB347 45%,#2EC4B6 100%);
+  --f-display:"Archivo","Arial Narrow",system-ui,sans-serif;
+  --f-body:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --f-mono:"IBM Plex Mono",ui-monospace,"SF Mono",Menlo,monospace;
+  --r:14px; --nav-h:64px; color-scheme:light;
+}
+
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+html,body{height:100%}
+body{margin:0}
+body{background:radial-gradient(900px 420px at 100% -10%,#FFE3D3 0%,transparent 60%),radial-gradient(800px 420px at -10% 110%,#D6F5EF 0%,transparent 60%),var(--bg);background-attachment:fixed;color:var(--ink);font:15px/1.45 var(--f-body);-webkit-tap-highlight-color:transparent}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:30;background:var(--surface)}
+button,input,select,textarea{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.num{font-family:var(--f-mono);font-variant-numeric:tabular-nums;letter-spacing:-.01em}
+
+.top{position:sticky;top:env(safe-area-inset-top,0px);z-index:20;background:color-mix(in srgb,var(--surface) 88%,transparent);-webkit-backdrop-filter:blur(12px);backdrop-filter:blur(12px);border-bottom:1px solid var(--line);box-shadow:inset 0 -3px 0 -1px transparent;
+  padding-block:10px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.top-in{max-width:780px;margin:0 auto;display:flex;align-items:center;gap:12px}
+.brand{display:flex;align-items:center;gap:10px;min-width:0;flex:1}
+.top::after{content:"";position:absolute;left:0;right:0;bottom:-1px;height:3px;background:var(--tropic)}
+.mark{width:34px;height:34px;border-radius:10px;background:var(--tropic);color:#fff;text-shadow:0 1px 2px rgba(80,20,20,.35);box-shadow:0 2px 8px rgba(255,111,97,.35);display:grid;place-items:center;font:800 13px/1 var(--f-display);font-stretch:80%;flex:none}
+.brand h1{margin:0;font:750 19px/1.1 var(--f-display);font-stretch:82%;letter-spacing:.005em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.brand small{display:block;font:500 11px/1.2 var(--f-body);color:var(--ink-3);letter-spacing:.06em;text-transform:uppercase}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;border:1px solid var(--line);background:var(--surface);border-radius:10px;padding:9px 14px;font-weight:600;font-size:14px;min-height:40px;text-decoration:none;color:var(--ink)}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+.cur{position:relative;flex:none}
+.cur select{appearance:none;-webkit-appearance:none;border:1px solid var(--line);background:var(--surface-2);color:var(--ink);border-radius:10px;min-height:40px;padding:8px 28px 8px 11px;font:600 14px var(--f-mono);cursor:pointer}
+.cur::after{content:"";position:absolute;right:11px;top:50%;width:7px;height:7px;border-right:2px solid var(--ink-2);border-bottom:2px solid var(--ink-2);transform:translateY(-70%) rotate(45deg);pointer-events:none}
+@media (max-width:420px){.top .btn.primary span{display:none}}
+.btn.primary{background:linear-gradient(135deg,#0BA39C,var(--accent));border-color:var(--accent);color:var(--accent-ink);box-shadow:0 2px 8px rgba(8,128,124,.25)}
+.btn.danger{color:var(--bad);border-color:color-mix(in srgb,var(--bad) 40%,var(--line))}
+.btn.danger.solid{background:var(--bad);color:#fff;border-color:var(--bad)}
+.btn.ghost{border-color:transparent;background:transparent}
+.btn.sm{min-height:32px;padding:5px 10px;font-size:13px;border-radius:8px}
+.btn:disabled{opacity:.5;cursor:default}
+.btn svg{width:18px;height:18px}
+
+main{padding-block:16px calc(var(--nav-h) + 28px + env(safe-area-inset-bottom,0px));padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.wrap{max-width:780px;margin:0 auto;display:flex;flex-direction:column;gap:20px}
+.banner{border:1px solid var(--line);background:var(--surface);border-radius:var(--r);padding:12px 14px;display:flex;gap:12px;align-items:center;flex-wrap:wrap;font-size:14px;color:var(--ink-2)}
+.banner b{color:var(--ink)}
+.banner.warn{border-color:color-mix(in srgb,var(--warn) 45%,var(--line));background:color-mix(in srgb,var(--warn) 8%,var(--surface))}
+.banner > span{flex:1;min-width:200px}
+
+h2.sec{margin:0;font:700 13px/1.2 var(--f-body);letter-spacing:.08em;text-transform:uppercase;color:var(--ink-3);display:flex;align-items:center;justify-content:space-between;gap:8px}
+.sec-block{display:flex;flex-direction:column;gap:10px}
+.greet{font:750 28px/1.1 var(--f-display);font-stretch:78%;margin:0;text-wrap:balance}
+.greet span{color:var(--ink-3);font-weight:600}
+
+.stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
+@media (max-width:620px){.stats{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.stat{background:var(--surface);border:1px solid var(--line);border-top:3px solid var(--sc,var(--accent));border-radius:var(--r);padding:12px 14px;box-shadow:0 1px 3px rgba(120,60,40,.06);display:flex;flex-direction:column;gap:4px;min-width:0;text-align:left}
+.stat .lbl{font-size:12px;color:var(--ink-3);font-weight:500}
+.stat .val{font:600 20px/1.15 var(--f-mono);font-variant-numeric:tabular-nums;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.stat .sub{font-size:12px;color:var(--ink-2)}
+.stat.bad .val{color:var(--bad)}
+.stats>.stat:nth-child(1){--sc:#2EC4B6}.stats>.stat:nth-child(2){--sc:#FFB347}.stats>.stat:nth-child(3){--sc:#FF6F61}.stats>.stat:nth-child(4){--sc:#9B5DE5}
+
+.list{display:flex;flex-direction:column;gap:8px}
+.job{display:grid;grid-template-columns:52px minmax(0,1fr) auto;gap:12px;align-items:center;width:100%;text-align:left;background:linear-gradient(90deg,color-mix(in srgb,var(--stc) 7%,var(--surface)),var(--surface) 40%);box-shadow:0 1px 3px rgba(120,60,40,.06);border:1px solid var(--line);border-left:4px solid var(--stc);border-radius:var(--r);padding:10px 12px}
+.job:hover{border-color:color-mix(in srgb,var(--stc) 50%,var(--line));border-left-color:var(--stc)}
+.job.st-heavy{border-left-style:dashed}
+.job.st-cancelled .job-title{text-decoration:line-through;color:var(--ink-3)}
+.job-date{display:flex;flex-direction:column;align-items:center;line-height:1}
+.job-date b{font:700 22px/1 var(--f-display);font-stretch:80%}
+.job-date small{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--ink-3);margin-top:3px}
+.job-main{display:flex;flex-direction:column;gap:3px;min-width:0}
+.job-title{font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.job-sub{font-size:13px;color:var(--ink-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.job-meta{display:flex;gap:6px;flex-wrap:wrap}
+.job-amt{font:500 14px var(--f-mono);font-variant-numeric:tabular-nums;color:var(--ink-2);text-align:right}
+.st-blocked{--stc:var(--st-blocked)}.st-heavy{--stc:var(--st-heavy)}.st-confirmed{--stc:var(--st-confirmed)}
+.st-completed{--stc:var(--st-completed)}.st-notdone{--stc:var(--st-notdone)}.st-cancelled{--stc:var(--st-cancelled)}
+
+.pill{display:inline-flex;align-items:center;gap:5px;font-size:12px;font-weight:600;padding:2px 8px;border-radius:999px;color:var(--stc,var(--ink-2));background:color-mix(in srgb,var(--stc,var(--ink-3)) 13%,transparent);white-space:nowrap}
+.pill::before{content:"";width:7px;height:7px;border-radius:50%;background:currentColor}
+.pill.st-heavy::before{background:transparent;border:1.5px dashed currentColor;width:6px;height:6px}
+.pill.st-blocked::before{border-radius:2px}
+.pp-paid{--stc:var(--good)}.pp-overdue{--stc:var(--bad)}.pp-part{--stc:var(--warn)}.pp-sent{--stc:var(--accent)}.pp-draft{--stc:var(--ink-3)}
+.tag{font-size:11px;font-weight:600;padding:2px 7px;border-radius:6px;background:var(--surface-2);color:var(--ink-2);text-transform:uppercase;letter-spacing:.05em}
+
+.empty{background:var(--surface);border:1px dashed var(--line);border-radius:var(--r);padding:22px 18px;text-align:center;color:var(--ink-2);display:flex;flex-direction:column;gap:10px;align-items:center}
+.empty b{color:var(--ink);font-size:16px}
+
+.attn{display:flex;flex-direction:column;background:var(--surface);border:1px solid var(--line);border-radius:var(--r);overflow:hidden}
+.attn button{display:flex;gap:10px;align-items:center;text-align:left;background:none;border:0;border-top:1px solid var(--line);padding:11px 14px;width:100%}
+.attn button:first-child{border-top:0}
+.attn .dot{width:9px;height:9px;border-radius:50%;flex:none;background:var(--stc)}
+.attn .t{flex:1;min-width:0}
+.attn .t b{display:block;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.attn .t small{color:var(--ink-2);font-size:13px}
+
+.toolbar{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.search{flex:1;min-width:180px;border:1px solid var(--line);background:var(--surface);border-radius:10px;padding:9px 12px;min-height:40px}
+.chips{display:flex;gap:6px;overflow-x:auto;padding-bottom:2px;scrollbar-width:none}
+.chips::-webkit-scrollbar{display:none}
+.chip{flex:none;border:1px solid var(--line);background:var(--surface);border-radius:999px;padding:6px 12px;font-size:13px;font-weight:600;color:var(--ink-2)}
+.chip[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.month-h{font:700 15px/1 var(--f-display);font-stretch:85%;letter-spacing:.02em;color:var(--ink-2);margin:8px 0 0;display:flex;justify-content:space-between}
+.month-h span{font:500 13px var(--f-mono);color:var(--ink-3)}
+
+/* calendar */
+.cal{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);overflow:hidden}
+.cal-nav{display:flex;align-items:center;justify-content:space-between;padding:10px 12px;border-bottom:1px solid var(--line)}
+.cal-nav h3{margin:0;font:750 19px/1 var(--f-display);font-stretch:80%}
+.cal-grid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr))}
+.cal-dow{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--ink-3);text-align:center;padding:8px 0;border-bottom:1px solid var(--line)}
+.cal-day{min-height:74px;border-right:1px solid var(--line);border-bottom:1px solid var(--line);padding:4px 3px;display:flex;flex-direction:column;gap:2px;background:none;border-top:0;border-left:0;text-align:left;min-width:0}
+.cal-day:nth-child(7n){border-right:0}
+.cal-day .dn{font:500 12px var(--f-mono);color:var(--ink-2);padding:1px 3px;border-radius:5px;align-self:flex-start}
+.cal-day.other .dn{color:var(--ink-3);opacity:.55}
+.cal-day.today .dn{background:var(--accent);color:var(--accent-ink)}
+.cal-day.sel{background:var(--accent-soft)}
+.cal-bar{font-size:10.5px;line-height:1.25;font-weight:600;padding:1px 4px;border-radius:4px;color:var(--stc);background:color-mix(in srgb,var(--stc) 16%,transparent);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cal-bar.st-heavy{outline:1px dashed var(--stc);outline-offset:-1px;background:transparent}
+.cal-bar.st-blocked{background:repeating-linear-gradient(135deg,color-mix(in srgb,var(--stc) 22%,transparent) 0 4px,transparent 4px 8px)}
+.cal-bar.st-cancelled{text-decoration:line-through;opacity:.7}
+.cal-more{font-size:10px;color:var(--ink-3);padding-left:4px}
+.legend{display:flex;flex-wrap:wrap;gap:6px 12px;font-size:12px;color:var(--ink-2)}
+
+/* cards & forms */
+.card{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);box-shadow:0 1px 3px rgba(120,60,40,.06);padding:14px;display:flex;flex-direction:column;gap:12px}
+.client-row{display:flex;justify-content:space-between;gap:12px;align-items:center;width:100%;text-align:left;background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:12px 14px}
+.client-row .t{min-width:0}
+.client-row b{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.client-row small{color:var(--ink-2);font-size:13px}
+.client-row .r{text-align:right;font-size:13px;color:var(--ink-2);flex:none}
+.av{width:36px;height:36px;border-radius:50%;background:var(--tropic);color:#fff;display:grid;place-items:center;font:700 13px var(--f-display);flex:none}
+
+.field{display:flex;flex-direction:column;gap:5px;min-width:0}
+.field > span{font-size:12px;font-weight:600;color:var(--ink-2);letter-spacing:.02em}
+.field input,.field select,.field textarea,.inp{width:100%;border:1px solid var(--line);background:var(--bg);border-radius:9px;padding:9px 11px;min-height:42px}
+.field textarea{min-height:80px;resize:vertical}
+.grid2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.grid3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+@media (max-width:520px){.grid3{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.hint{font-size:12px;color:var(--ink-3)}
+.warnbox{font-size:13px;padding:9px 11px;border-radius:9px;background:color-mix(in srgb,var(--warn) 12%,transparent);color:var(--ink);border:1px solid color-mix(in srgb,var(--warn) 40%,transparent)}
+.switch{display:flex;align-items:center;justify-content:space-between;gap:12px;font-weight:500}
+.switch input{width:44px;height:26px;appearance:none;background:var(--surface-2);border:1px solid var(--line);border-radius:999px;position:relative;flex:none;transition:background .15s}
+.switch input::after{content:"";position:absolute;top:2px;left:2px;width:20px;height:20px;border-radius:50%;background:var(--surface);box-shadow:0 1px 2px rgba(0,0,0,.25);transition:transform .15s}
+.switch input:checked{background:var(--accent);border-color:var(--accent)}
+.switch input:checked::after{transform:translateX(18px)}
+.status-pick{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}
+.status-pick button{border:1px solid var(--line);background:var(--surface);border-radius:9px;padding:8px 6px;font-size:13px;font-weight:600;color:var(--stc);display:flex;align-items:center;justify-content:center;gap:6px;min-height:40px}
+.status-pick button[aria-pressed="true"]{background:var(--stc);border-color:var(--stc);color:var(--surface)}
+.status-pick button.st-heavy{border-style:dashed}
+
+.items{display:flex;flex-direction:column;gap:8px}
+.item{display:grid;grid-template-columns:minmax(0,1fr) 64px 92px 90px 34px;gap:6px;align-items:center}
+.item .amt{text-align:right;font:500 13px var(--f-mono);font-variant-numeric:tabular-nums}
+.item .inp{min-height:38px;padding:7px 8px;font-size:14px}
+@media (max-width:560px){.item{grid-template-columns:minmax(0,1fr) 58px 84px 34px}.item .desc{grid-column:1/-1}.item .amt{display:none}}
+.xbtn{width:34px;height:34px;border-radius:8px;border:1px solid var(--line);background:var(--surface);color:var(--ink-3);display:grid;place-items:center}
+.totals{display:grid;grid-template-columns:1fr auto;gap:4px 16px;font-size:14px;justify-items:end}
+.totals span:nth-child(odd){color:var(--ink-2);justify-self:start}
+.totals .grand{font-weight:700;font-size:16px;color:var(--ink)!important}
+
+.kv{display:grid;grid-template-columns:110px minmax(0,1fr);gap:8px 12px;margin:0;font-size:14px}
+.kv dt{color:var(--ink-3);font-weight:500}
+.kv dd{margin:0;min-width:0;overflow-wrap:anywhere}
+.copy{border:0;background:none;color:var(--accent);font-weight:600;font-size:13px;padding:0 0 0 8px}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.row.end{justify-content:flex-end}
+.spacer{flex:1}
+table.t{width:100%;border-collapse:collapse;font-size:14px}
+table.t th{font-size:12px;text-align:left;color:var(--ink-3);font-weight:600;padding:6px 4px;border-bottom:1px solid var(--line)}
+table.t th.r{text-align:right}
+table.t td{padding:8px 4px;border-bottom:1px solid var(--line);vertical-align:top}
+table.t .r{text-align:right;font-family:var(--f-mono);font-variant-numeric:tabular-nums;white-space:nowrap}
+.tscroll{overflow-x:auto}
+.pay{display:flex;justify-content:space-between;gap:10px;align-items:center;padding:8px 0;border-bottom:1px solid var(--line);font-size:14px}
+.pay:last-child{border-bottom:0}
+
+.chart-box{position:relative;height:230px}
+.bar-list{display:flex;flex-direction:column;gap:8px}
+.bar-row{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:4px 10px;font-size:13px}
+.bar-row .track{grid-column:1/-1;height:6px;border-radius:3px;background:var(--surface-2);overflow:hidden}
+.bar-row .track i{display:block;height:100%;background:var(--tropic);border-radius:3px}
+
+/* nav */
+.tabs{position:fixed;left:0;right:0;bottom:0;z-index:20;background:color-mix(in srgb,var(--surface) 92%,transparent);-webkit-backdrop-filter:blur(12px);backdrop-filter:blur(12px);border-top:1px solid var(--line);
+  padding-bottom:env(safe-area-inset-bottom,0px);padding-left:max(8px,env(safe-area-inset-left,0px));padding-right:max(8px,env(safe-area-inset-right,0px))}
+.tabs-in{max-width:780px;margin:0 auto;display:grid;grid-template-columns:repeat(6,minmax(0,1fr));height:var(--nav-h)}
+.tab{border:0;background:none;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;font-size:11px;font-weight:600;color:var(--ink-3)}
+.tab svg{width:22px;height:22px}
+.tab[aria-current="page"]{color:var(--accent)}
+.tab[aria-current="page"] svg{filter:drop-shadow(0 2px 4px rgba(8,128,124,.3))}
+
+/* sheet */
+.sheet{position:fixed;inset:0;z-index:40;display:flex;align-items:flex-end;justify-content:center;background:rgba(43,29,48,.38)}
+.sheet-card{background:var(--bg);width:100%;max-width:780px;height:calc(100% - env(safe-area-inset-top,0px) - 12px);border-radius:16px 16px 0 0;display:flex;flex-direction:column;overflow:hidden;box-shadow:0 -10px 40px rgba(0,0,0,.25)}
+@media (min-width:820px){.sheet{align-items:center}.sheet-card{height:min(92%,900px);border-radius:16px}}
+.sheet-head{display:flex;align-items:center;gap:8px;padding:10px 12px;background:var(--surface);border-bottom:1px solid var(--line)}
+.sheet-head h2{flex:1;margin:0;font:750 18px/1.15 var(--f-display);font-stretch:82%;text-align:center;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sheet-body{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:16px max(16px,env(safe-area-inset-right,0px)) calc(28px + env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px));display:flex;flex-direction:column;gap:16px}
+.sheet-foot{display:flex;gap:8px;padding:10px 16px calc(10px + env(safe-area-inset-bottom,0px));background:var(--surface);border-top:1px solid var(--line)}
+.sheet-foot .btn{flex:1}
+.detail-head{display:flex;flex-direction:column;gap:6px}
+.detail-head h3{margin:0;font:750 26px/1.1 var(--f-display);font-stretch:78%;text-wrap:balance}
+.detail-head .when{color:var(--ink-2);font-size:14px}
+
+.toast{position:fixed;left:50%;bottom:calc(var(--nav-h) + 16px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);z-index:60;background:var(--ink);color:var(--surface);padding:10px 16px;border-radius:10px;font-size:14px;font-weight:500;max-width:min(92vw,520px);box-shadow:0 6px 20px rgba(0,0,0,.25);text-align:center}
+.toast.err{background:var(--bad);color:#fff}
+.spin{width:16px;height:16px;border-radius:50%;border:2px solid currentColor;border-right-color:transparent;animation:sp .7s linear infinite}
+@keyframes sp{to{transform:rotate(360deg)}}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+</style>
+
+<header class="top"><div class="top-in">
+  <div class="brand"><div class="mark" aria-hidden="true">360</div><div style="min-width:0"><h1>My Booking 360</h1><small id="topSub">Bookings · Invoices · Money</small></div></div>
+  <label class="cur" title="Currency"><span class="sr">Currency</span><select id="curSel" aria-label="Currency"></select></label>
+  <button class="btn primary" data-act="newJob" aria-label="New booking"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg><span>Booking</span></button>
+</div></header>
+
+<main><div class="wrap" id="view"></div></main>
+
+<nav class="tabs" aria-label="Sections"><div class="tabs-in" id="tabs"></div></nav>
+<div class="sheet" id="sheet" hidden><div class="sheet-card" id="sheetCard" role="dialog" aria-modal="true"></div></div>
+<div class="toast" id="toast" hidden role="status"></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script>
+"use strict";
+/* ---------- constants ---------- */
+const STATUSES=[
+  {k:'blocked',label:'Blocked off',gcal:'3'},
+  {k:'heavy',label:'Heavy pencil',gcal:'5'},
+  {k:'confirmed',label:'Confirmed',gcal:'10'},
+  {k:'completed',label:'Completed',gcal:'9'},
+  {k:'notdone',label:'Not completed',gcal:'11'},
+  {k:'cancelled',label:'Cancelled',gcal:'8'},
+];
+const ST=Object.fromEntries(STATUSES.map(s=>[s.k,s]));
+const UNITS=['day','half day','hour','item','km','flat'];
+const CURRENCIES=[['ZAR','South African rand'],['BWP','Botswana pula'],['NAD','Namibian dollar'],['KES','Kenyan shilling'],['MUR','Mauritian rupee'],['AUD','Australian dollar'],['NZD','New Zealand dollar'],['USD','US dollar'],['GBP','British pound'],['EUR','Euro'],['CAD','Canadian dollar'],['SGD','Singapore dollar'],['HKD','Hong Kong dollar'],['AED','UAE dirham'],['INR','Indian rupee'],['JPY','Japanese yen']];
+const curOptions=sel=>{const list=CURRENCIES.some(c=>c[0]===sel)?CURRENCIES:[[sel,sel],...CURRENCIES];return list.map(([k,n])=>`<option value="${esc(k)}" ${k===sel?'selected':''}>${esc(k)} · ${esc(n)}</option>`).join('')};
+const METHODS=['EFT','Instant EFT / PayShap','Card','Cash','SnapScan / Zapper','Other'];
+const DEFAULTS={businessName:'',ownerName:'',abn:'',email:'',phone:'',address:'',gstRegistered:true,gstRate:15,currency:'ZAR',
+  termsDays:30,invoicePrefix:'INV-',nextInvoiceNo:1001,bankName:'',accountName:'',bsb:'',accountNo:'',accountType:'',swift:'',regNo:'',travelRate:4.76,timeZone:'Africa/Johannesburg',region:'ZA',
+  invoiceNotes:'Thank you for your business.',quotePrefix:'QUO-',nextQuoteNo:1001,quoteValidDays:30,defaultRate:0,defaultUnit:'day',crew:'',autoSync:true};
+const ICONS={
+  home:'<path d="M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/>',
+  jobs:'<rect x="3" y="7" width="18" height="13" rx="2"/><path d="M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M3 13h18"/>',
+  cal:'<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M16 3v4M8 3v4M3 10h18"/>',
+  clients:'<circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0M16 4.5a3.5 3.5 0 0 1 0 7M18 14a6 6 0 0 1 3.5 6"/>',
+  money:'<path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/>',
+  more:'<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.6 1.6 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.6 1.6 0 0 0-1.8-.3 1.6 1.6 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.6 1.6 0 0 0-1-1.5 1.6 1.6 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.6 1.6 0 0 0 .3-1.8 1.6 1.6 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.6 1.6 0 0 0 1.5-1 1.6 1.6 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.6 1.6 0 0 0 1.8.3H9a1.6 1.6 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.6 1.6 0 0 0 1 1.5 1.6 1.6 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.6 1.6 0 0 0-.3 1.8V9a1.6 1.6 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.6 1.6 0 0 0-1.5 1z"/>'};
+const TABS=[['home','Home'],['jobs','Jobs'],['cal','Calendar'],['clients','Clients'],['money','Money'],['more','Settings']];
+
+/* ---------- state ---------- */
+const S={mode:'loading',db:null,mcp:null,dl:null,settings:{...DEFAULTS},clients:[],jobs:[],
+  view:'home',jobFilter:'upcoming',search:'',clientSearch:'',calMonth:null,calSel:null,draft:null,openJobId:null,charts:[]};
+
+/* ---------- utils ---------- */
+const $=(s,el=document)=>el.querySelector(s);
+const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const pd=s=>{if(!s)return null;const[y,m,d]=s.split('-').map(Number);return new Date(y,m-1,d)};
+const iso=d=>`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+const today=()=>iso(new Date());
+const addDays=(s,n)=>{const d=pd(s);d.setDate(d.getDate()+n);return iso(d)};
+const fmtD=(s,o={weekday:'short',day:'numeric',month:'short'})=>s?pd(s).toLocaleDateString('en-ZA',o):'';
+const fmtRange=(a,b)=>!b||a===b?fmtD(a):`${fmtD(a)} – ${fmtD(b)}`;
+const fmtLong=s=>fmtD(s,{day:'numeric',month:'long',year:'numeric'});
+const money=n=>{try{return new Intl.NumberFormat('en-ZA',{style:'currency',currency:S.settings.currency||'ZAR'}).format(n||0)}catch{return 'R '+(+n||0).toFixed(2)}};
+const moneyShort=n=>{try{return new Intl.NumberFormat('en-ZA',{style:'currency',currency:S.settings.currency||'ZAR',notation:'compact',maximumFractionDigits:1}).format(n||0)}catch{return String(n)}};
+const newId=()=>Math.random().toString(36).slice(2,9)+Date.now().toString(36).slice(-5);
+const r2=n=>Math.round((+n||0)*100)/100;
+const clone=o=>JSON.parse(JSON.stringify(o));
+const client=id=>S.clients.find(c=>c.id===id);
+const jobEnd=j=>j.end||j.start;
+const initials=n=>(n||'?').split(/\s+/).filter(Boolean).slice(0,2).map(w=>w[0]).join('').toUpperCase();
+const daysBetween=(a,b)=>Math.round((pd(b)-pd(a))/864e5);
+const bookDays=d=>d.start?Math.max(1,daysBetween(d.start,d.end&&d.end>d.start?d.end:d.start)+1):1;
+
+function totals(j){
+  const sub=r2((j.items||[]).reduce((a,i)=>a+(+i.qty||0)*(+i.rate||0),0));
+  const rate=j.invoice?.gstRate ?? (+S.settings.gstRate||0);
+  const gst=j.gst?r2(sub*rate/100):0;
+  const total=r2(sub+gst);
+  const paid=r2((j.payments||[]).reduce((a,p)=>a+(+p.amount||0),0));
+  return {sub,gst,total,paid,balance:r2(total-paid),rate};
+}
+function payState(j){
+  if(!j.invoice)return null;
+  const t=totals(j);
+  if(t.total>0&&t.balance<=0)return 'paid';
+  if(j.invoice.due&&j.invoice.due<today())return 'overdue';
+  if(t.paid>0)return 'part';
+  return j.invoice.sentAt?'sent':'draft';
+}
+const PAYLBL={paid:'Paid',overdue:'Overdue',part:'Part paid',sent:'Invoiced',draft:'Invoice not sent'};
+const stPill=k=>`<span class="pill st-${k}">${esc(ST[k]?.label||k)}</span>`;
+const payPill=p=>p?`<span class="pill pp-${p}">${PAYLBL[p]}</span>`:'';
+
+function toast(msg,err){const t=$('#toast');t.textContent=msg;t.className='toast'+(err?' err':'');t.hidden=false;clearTimeout(toast._t);toast._t=setTimeout(()=>t.hidden=true,err?6000:3200)}
+async function copyText(txt){try{await navigator.clipboard.writeText(txt);toast('Copied')}catch{toast('Copy not available here — press and hold to select it')}}
+
+/* ---------- data layer ---------- */
+const LKEY='mb360-local';
+function localLoad(){try{const d=JSON.parse(localStorage.getItem(LKEY)||'{}');S.jobs=d.jobs||[];S.clients=d.clients||[];S.settings=withRegion(d.settings||{})}catch{}}
+function withRegion(d){const s={...DEFAULTS,...d};if(!d.region){s.currency='ZAR';s.gstRate=15;s.region='ZA';s.timeZone=s.timeZone||'Africa/Johannesburg'}return s}
+function localSave(){try{localStorage.setItem(LKEY,JSON.stringify({jobs:S.jobs,clients:S.clients,settings:S.settings}))}catch{}}
+function upsertLocal(arr,obj){const i=arr.findIndex(x=>x.id===obj.id);if(i>=0)arr[i]=obj;else arr.push(obj)}
+function dbErr(e){
+  if(e?.code==='quota_exceeded')toast('Storage is full. Delete some old jobs, then try again.',1);
+  else if(e?.code==='invalid_argument')toast('Only the owner of this app can save changes.',1);
+  else toast('Could not save. Check your connection and try again.',1);
+  throw e;
+}
+const store={
+  async saveJob(j){j.updatedAt=Date.now();if(S.db){try{await S.db.doc('jobs/'+j.id).set(clone(j))}catch(e){dbErr(e)}}else{upsertLocal(S.jobs,clone(j));localSave();sortJobs();render()}},
+  async deleteJob(id){if(S.db){try{await S.db.doc('jobs/'+id).delete()}catch(e){dbErr(e)}}else{S.jobs=S.jobs.filter(j=>j.id!==id);localSave();render()}},
+  async saveClient(c){c.updatedAt=Date.now();if(S.db){try{await S.db.doc('clients/'+c.id).set(clone(c))}catch(e){dbErr(e)}}else{upsertLocal(S.clients,clone(c));localSave();render()}},
+  async deleteClient(id){if(S.db){try{await S.db.doc('clients/'+id).delete()}catch(e){dbErr(e)}}else{S.clients=S.clients.filter(c=>c.id!==id);localSave();render()}},
+  async saveSettings(s){S.settings={...S.settings,...s};if(S.db){try{await S.db.doc('settings/main').set(clone(S.settings))}catch(e){dbErr(e)}}else{localSave();render()}}
+};
+function sortJobs(){S.jobs.sort((a,b)=>(a.start||'').localeCompare(b.start||'')||(a.callTime||'').localeCompare(b.callTime||''))}
+
+async function boot(){
+  const now=new Date();S.calMonth=iso(new Date(now.getFullYear(),now.getMonth(),1));S.calSel=today();
+  renderTabs();render();
+  const use=n=>(window.claude&&window.claude.use)?window.claude.use(n).catch(()=>null):Promise.resolve(null);
+  const [db,user,mcp,dl]=await Promise.all([use('db'),use('user'),use('mcp'),use('downloads')]);
+  S.mcp=mcp;S.dl=dl;
+  if(!db){S.mode='local';localLoad();sortJobs();render();return}
+  let owner=true;try{if(user&&user.isOwner){const v=await user.isOwner();owner=v!==false}}catch{}
+  if(!owner){S.mode='notowner';render();return}
+  S.db=db;S.mode='live';
+  let got=0;const ready=()=>{if(++got>=3){S.loaded=true}render()};
+  db.doc('settings/main').onSnapshot(s=>{S.settings=withRegion(s.exists?s.data():{});ready()},()=>ready());
+  db.collection('clients').onSnapshot(s=>{S.clients=s.docs.map(d=>({...d.data(),id:d.id})).sort((a,b)=>(a.name||'').localeCompare(b.name||''));ready()},()=>ready());
+  db.collection('jobs').onSnapshot(s=>{S.jobs=s.docs.map(d=>({...d.data(),id:d.id}));sortJobs();ready()},()=>ready());
+}
+
+/* ---------- rendering ---------- */
+function renderTabs(){
+  $('#tabs').innerHTML=TABS.map(([k,l])=>`<button class="tab" data-act="tab" data-v="${k}" ${S.view===k?'aria-current="page"':''}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${ICONS[k]}</svg>${l}</button>`).join('');
+}
+function render(){
+  S.charts.forEach(c=>{try{c.destroy()}catch{}});S.charts=[];
+  const v=$('#view'),cs=$('#curSel'),cur=S.settings.currency||'ZAR';
+  if(cs.dataset.v!==cur){cs.innerHTML=CURRENCIES.some(c=>c[0]===cur)?CURRENCIES.map(([k])=>`<option value="${k}" ${k===cur?'selected':''}>${k}</option>`).join(''):`<option selected>${esc(cur)}</option>`+CURRENCIES.map(([k])=>`<option>${k}</option>`).join('');cs.dataset.v=cur}
+  cs.disabled=S.mode==='loading'||S.mode==='notowner';
+  if(S.mode==='loading'){v.innerHTML=`<div class="empty"><div class="spin"></div><span>Loading your bookings…</span></div>`;return}
+  if(S.mode==='notowner'){v.innerHTML=`<div class="empty"><b>This booking book is private</b><span>Only its owner can see and change the bookings, clients and invoices in My Booking 360.</span></div>`;return}
+  const views={home:vHome,jobs:vJobs,cal:vCal,clients:vClients,money:vMoney,more:vMore};
+  v.innerHTML=banners()+(views[S.view]||vHome)();
+  if(S.view==='money')drawCharts();
+  if(S.openJobId&&!$('#sheet').hidden&&$('#sheetCard').dataset.kind==='job')openJob(S.openJobId,true);
+}
+function banners(){
+  let b='';
+  if(S.mode==='local')b+=`<div class="banner warn"><span><b>Saved on this device only.</b> Open My Booking 360 from claude.ai while signed in to keep bookings in your account, sync your calendar and email invoices.</span></div>`;
+  if(S.jobs.some(j=>j.example)||S.clients.some(c=>c.example))b+=`<div class="banner"><span><b>You are looking at example bookings.</b> They show how the app works. Remove them when you are ready to add your own.</span><button class="btn sm" data-act="clearExamples">Remove examples</button></div>`;
+  if(S.mode==='live'&&S.loaded&&!S.settings.businessName)b+=`<div class="banner"><span><b>Add your business details</b> so your invoices show your name, VAT number and bank details.</span><button class="btn sm" data-act="tab" data-v="more">Set up</button></div>`;
+  return b;
+}
+function jobCard(j){
+  const c=client(j.clientId),t=totals(j),d=pd(j.start)||new Date();
+  const sub=[c?.name||'No client',j.engineer,j.venue].filter(Boolean).map(esc).join(' · ');
+  return `<button class="job st-${j.status}" data-act="openJob" data-id="${j.id}">
+    <span class="job-date"><b>${d.getDate()}</b><small>${d.toLocaleDateString('en-ZA',{month:'short'})}</small></span>
+    <span class="job-main"><span class="job-title">${esc(j.title||'Untitled job')}</span><span class="job-sub">${sub}${jobEnd(j)!==j.start?` · ${daysBetween(j.start,jobEnd(j))+1} days`:''}</span>
+    <span class="job-meta">${stPill(j.status)}${payPill(payState(j))}${j.example?'<span class="tag">Example</span>':''}</span></span>
+    <span class="job-amt">${t.total?money(t.total):''}</span></button>`;
+}
+function emptyJobs(msg){return `<div class="empty"><b>${msg}</b><span>Add a booking with the dates, client, engineer and rates. You can hold dates as a heavy pencil and confirm later.</span><button class="btn primary" data-act="newJob">Add a booking</button></div>`}
+
+function attention(){
+  const t=today(),out=[];
+  S.jobs.forEach(j=>{
+    const ps=payState(j),c=client(j.clientId)?.name||'No client';
+    if(ps==='overdue')out.push({j,st:'notdone',w:0,b:`Overdue: ${j.invoice.no} · ${money(totals(j).balance)}`,s:`${c} · due ${fmtD(j.invoice.due)}`});
+    else if(j.status==='completed'&&!j.invoice&&totals(j).total>0)out.push({j,st:'completed',w:1,b:`Ready to invoice: ${j.title}`,s:`${c} · ${money(totals(j).total)}`});
+    else if(j.status==='confirmed'&&jobEnd(j)<t)out.push({j,st:'confirmed',w:2,b:`Did this job go ahead? ${j.title}`,s:`Ended ${fmtD(jobEnd(j))} · mark it completed or not completed`});
+    else if(j.status==='heavy'&&j.start>=t&&daysBetween(t,j.start)<=14)out.push({j,st:'heavy',w:3,b:`Pencil to confirm: ${j.title}`,s:`${c} · starts ${fmtD(j.start)}`});
+  });
+  return out.sort((a,b)=>a.w-b.w).slice(0,8);
+}
+function vHome(){
+  const t=today(),wk=addDays(t,7),m=t.slice(0,7);
+  const live=S.jobs.filter(j=>j.status!=='cancelled');
+  const next7=live.filter(j=>jobEnd(j)>=t&&j.start<=wk&&j.status!=='blocked');
+  const inv=S.jobs.filter(j=>j.invoice&&j.status!=='cancelled');
+  const outstanding=r2(inv.reduce((a,j)=>a+Math.max(0,totals(j).balance),0));
+  const od=inv.filter(j=>payState(j)==='overdue');
+  const odAmt=r2(od.reduce((a,j)=>a+totals(j).balance,0));
+  const recM=r2(S.jobs.flatMap(j=>j.payments||[]).filter(p=>(p.date||'').startsWith(m)).reduce((a,p)=>a+(+p.amount||0),0));
+  const upcoming=live.filter(j=>jobEnd(j)>=t).slice(0,6);
+  const att=attention();
+  const name=(S.settings.ownerName||'').split(' ')[0];
+  return `<p class="greet">${name?`Hi ${esc(name)}. `:''}<span>${fmtD(t,{weekday:'long',day:'numeric',month:'long'})}</span></p>
+  <div class="stats">
+    <button class="stat" data-act="tab" data-v="cal"><span class="lbl">Next 7 days</span><span class="val">${next7.length}</span><span class="sub">${next7.length===1?'booking':'bookings'}</span></button>
+    <button class="stat" data-act="tab" data-v="money"><span class="lbl">Owed to you</span><span class="val">${money(outstanding)}</span><span class="sub">${inv.filter(j=>totals(j).balance>0).length} unpaid invoices</span></button>
+    <button class="stat ${odAmt>0?'bad':''}" data-act="tab" data-v="money"><span class="lbl">Overdue</span><span class="val">${money(odAmt)}</span><span class="sub">${od.length} ${od.length===1?'invoice':'invoices'}</span></button>
+    <button class="stat" data-act="tab" data-v="money"><span class="lbl">Paid this month</span><span class="val">${money(recM)}</span><span class="sub">${fmtD(t,{month:'long'})}</span></button>
+  </div>
+  ${att.length?`<div class="sec-block"><h2 class="sec">Needs your attention</h2><div class="attn">${att.map(a=>`<button data-act="openJob" data-id="${a.j.id}" class="st-${a.st}"><span class="dot"></span><span class="t"><b>${esc(a.b)}</b><small>${esc(a.s)}</small></span></button>`).join('')}</div></div>`:''}
+  <div class="sec-block"><h2 class="sec">Coming up <button class="btn sm ghost" data-act="tab" data-v="jobs">All jobs</button></h2>
+  ${upcoming.length?`<div class="list">${upcoming.map(jobCard).join('')}</div>`:emptyJobs('No upcoming bookings')}</div>`;
+}
+
+const FILTERS=[['upcoming','Upcoming'],['all','All'],...STATUSES.map(s=>[s.k,s.label]),['unpaid','Unpaid invoices']];
+function vJobs(){
+  const t=today(),q=S.search.trim().toLowerCase();
+  let js=S.jobs.slice();
+  const f=S.jobFilter;
+  if(f==='upcoming')js=js.filter(j=>jobEnd(j)>=t&&j.status!=='cancelled');
+  else if(f==='unpaid')js=js.filter(j=>j.invoice&&totals(j).balance>0);
+  else if(f!=='all')js=js.filter(j=>j.status===f);
+  if(q)js=js.filter(j=>[j.title,j.engineer,j.role,j.venue,j.address,j.po,j.notes,client(j.clientId)?.name,j.invoice?.no,j.quote?.no].join(' ').toLowerCase().includes(q));
+  if(f!=='upcoming')js.reverse();
+  const groups=[];js.forEach(j=>{const k=(j.start||'').slice(0,7);let g=groups[groups.length-1];if(!g||g.k!==k)groups.push(g={k,js:[]});g.js.push(j)});
+  return `<div class="toolbar"><input class="search" id="jobSearch" type="search" placeholder="Search jobs, clients, engineers, venues" value="${esc(S.search)}" aria-label="Search jobs"></div>
+  <div class="chips" role="group" aria-label="Filter jobs">${FILTERS.map(([k,l])=>`<button class="chip" data-act="jobFilter" data-v="${k}" aria-pressed="${f===k}">${l} <span class="num" style="opacity:.6">${countFilter(k)}</span></button>`).join('')}</div>
+  ${groups.length?groups.map(g=>`<div class="sec-block"><h3 class="month-h">${g.k?fmtD(g.k+'-01',{month:'long',year:'numeric'}):'No date'}<span>${money(g.js.filter(j=>j.status!=='cancelled').reduce((a,j)=>a+totals(j).total,0))}</span></h3><div class="list">${g.js.map(jobCard).join('')}</div></div>`).join(''):(S.jobs.length?`<div class="empty"><b>No jobs match</b><span>Try another filter or search.</span></div>`:emptyJobs('No bookings yet'))}`;
+}
+function countFilter(k){const t=today();
+  if(k==='upcoming')return S.jobs.filter(j=>jobEnd(j)>=t&&j.status!=='cancelled').length;
+  if(k==='all')return S.jobs.length;
+  if(k==='unpaid')return S.jobs.filter(j=>j.invoice&&totals(j).balance>0).length;
+  return S.jobs.filter(j=>j.status===k).length}
+
+function jobsOnDay(d){return S.jobs.filter(j=>j.start<=d&&jobEnd(j)>=d)}
+function vCal(){
+  const m=pd(S.calMonth),y=m.getFullYear(),mo=m.getMonth();
+  const first=new Date(y,mo,1),off=(first.getDay()+6)%7,start=new Date(y,mo,1-off);
+  const t=today();let cells='';
+  for(let i=0;i<42;i++){const d=new Date(start);d.setDate(start.getDate()+i);const s=iso(d);
+    if(i===35&&d.getMonth()!==mo)break;
+    const js=jobsOnDay(s);
+    cells+=`<button class="cal-day ${d.getMonth()!==mo?'other':''} ${s===t?'today':''} ${s===S.calSel?'sel':''}" data-act="calDay" data-d="${s}" aria-label="${fmtLong(s)}, ${js.length} bookings"><span class="dn">${d.getDate()}</span>
+      ${js.slice(0,3).map(j=>`<span class="cal-bar st-${j.status}">${esc(j.title)}</span>`).join('')}${js.length>3?`<span class="cal-more">+${js.length-3}</span>`:''}</button>`}
+  const sel=jobsOnDay(S.calSel);
+  return `<div class="cal"><div class="cal-nav"><button class="btn sm" data-act="calMove" data-n="-1" aria-label="Previous month">‹</button>
+    <h3>${first.toLocaleDateString('en-ZA',{month:'long',year:'numeric'})}</h3>
+    <div class="row"><button class="btn sm" data-act="calToday">Today</button><button class="btn sm" data-act="calMove" data-n="1" aria-label="Next month">›</button></div></div>
+    <div class="cal-grid">${['Mon','Tue','Wed','Thu','Fri','Sat','Sun'].map(d=>`<div class="cal-dow">${d}</div>`).join('')}${cells}</div></div>
+  <div class="legend">${STATUSES.map(s=>stPill(s.k)).join('')}</div>
+  <div class="sec-block"><h2 class="sec">${fmtD(S.calSel,{weekday:'long',day:'numeric',month:'long'})}<button class="btn sm" data-act="newJob" data-date="${S.calSel}">+ Booking on this day</button></h2>
+  ${sel.length?`<div class="list">${sel.map(jobCard).join('')}</div>`:`<div class="empty"><span>Nothing booked. This day is free.</span></div>`}</div>`;
+}
+
+function clientStats(c){const js=S.jobs.filter(j=>j.clientId===c.id);return{n:js.length,owed:r2(js.filter(j=>j.invoice).reduce((a,j)=>a+Math.max(0,totals(j).balance),0)),billed:r2(js.filter(j=>j.status!=='cancelled').reduce((a,j)=>a+totals(j).total,0))}}
+function vClients(){
+  const q=S.clientSearch.trim().toLowerCase();
+  const cs=S.clients.filter(c=>!q||[c.name,c.contact,c.email,c.phone].join(' ').toLowerCase().includes(q));
+  return `<div class="toolbar"><input class="search" id="clientSearch" type="search" placeholder="Search clients" value="${esc(S.clientSearch)}" aria-label="Search clients"><button class="btn primary" data-act="newClient">+ Client</button></div>
+  ${cs.length?`<div class="list">${cs.map(c=>{const st=clientStats(c);return `<button class="client-row" data-act="openClient" data-id="${c.id}"><span class="row" style="flex-wrap:nowrap;min-width:0"><span class="av">${esc(initials(c.name))}</span><span class="t"><b>${esc(c.name)}</b><small>${esc([c.contact,c.email].filter(Boolean).join(' · ')||'No contact details')}</small></span></span><span class="r"><span class="num">${st.n}</span> jobs${st.owed>0?`<br><span class="num" style="color:var(--warn)">${money(st.owed)} owed</span>`:''}</span></button>`}).join('')}</div>`
+  :`<div class="empty"><b>${S.clients.length?'No clients match':'No clients yet'}</b><span>Save each client once with their billing details. Their email fills in when you send an invoice.</span><button class="btn primary" data-act="newClient">Add a client</button></div>`}`;
+}
+
+/* ---------- money ---------- */
+function monthsWindow(){const n=new Date(),out=[];for(let i=-9;i<=2;i++){const d=new Date(n.getFullYear(),n.getMonth()+i,1);out.push(iso(d).slice(0,7))}return out}
+function finSeries(){
+  const ms=monthsWindow(),inv={},rec={},w={firm:{},pen:{},can:{}};ms.forEach(m=>{inv[m]=0;rec[m]=0;w.firm[m]=0;w.pen[m]=0;w.can[m]=0});
+  S.jobs.forEach(j=>{
+    if(j.invoice&&j.status!=='cancelled'){const k=(j.invoice.issued||'').slice(0,7);if(k in inv)inv[k]+=totals(j).total}
+    (j.payments||[]).forEach(p=>{const k=(p.date||'').slice(0,7);if(k in rec)rec[k]+=+p.amount||0});
+    const k=(j.start||'').slice(0,7);if(k in inv){const g=j.status==='cancelled'?'can':(['heavy','blocked'].includes(j.status)?'pen':'firm');w[g][k]++}
+  });
+  return{ms,inv:ms.map(m=>r2(inv[m])),rec:ms.map(m=>r2(rec[m])),firm:ms.map(m=>w.firm[m]),pen:ms.map(m=>w.pen[m]),can:ms.map(m=>w.can[m])};
+}
+function vMoney(){
+  const t=today(),m=t.slice(0,7),f=finSeries();
+  const inv=S.jobs.filter(j=>j.invoice&&j.status!=='cancelled');
+  const owed=inv.filter(j=>totals(j).balance>0).sort((a,b)=>(a.invoice.due||'').localeCompare(b.invoice.due||''));
+  const pays=S.jobs.flatMap(j=>(j.payments||[]).map(p=>({...p,j}))).sort((a,b)=>(b.date||'').localeCompare(a.date||''));
+  const yr12=f.ms.filter(k=>k<=m);const sumIn=r2(f.inv.slice(0,10).reduce((a,b)=>a+b,0)),sumRec=r2(f.rec.slice(0,10).reduce((a,b)=>a+b,0));
+  const toInvoice=S.jobs.filter(j=>j.status==='completed'&&!j.invoice&&totals(j).total>0);
+  const byClient={};inv.forEach(j=>{if((j.invoice.issued||'')>=yr12[0]){const n=client(j.clientId)?.name||'No client';byClient[n]=(byClient[n]||0)+totals(j).total}});
+  const top=Object.entries(byClient).sort((a,b)=>b[1]-a[1]).slice(0,5),topMax=top[0]?.[1]||1;
+  const pipeline=r2(S.jobs.filter(j=>['confirmed','heavy'].includes(j.status)&&!j.invoice&&jobEnd(j)>=t).reduce((a,j)=>a+totals(j).total,0));
+  return `<div class="stats">
+    <div class="stat"><span class="lbl">Invoiced, last 10 months</span><span class="val">${money(sumIn)}</span></div>
+    <div class="stat"><span class="lbl">Received, last 10 months</span><span class="val">${money(sumRec)}</span></div>
+    <div class="stat"><span class="lbl">Owed to you</span><span class="val">${money(owed.reduce((a,j)=>a+totals(j).balance,0))}</span><span class="sub">${owed.length} invoices</span></div>
+    <div class="stat"><span class="lbl">Booked, not yet invoiced</span><span class="val">${money(pipeline)}</span><span class="sub">Confirmed and pencilled</span></div>
+  </div>
+  <div class="card"><h2 class="sec">Money by month <span class="hint" style="text-transform:none;letter-spacing:0">Invoiced by issue date · received by payment date</span></h2><div class="chart-box"><canvas id="chFin" aria-label="Invoiced and received by month"></canvas></div></div>
+  <div class="card"><h2 class="sec">Work coming in <span class="hint" style="text-transform:none;letter-spacing:0">Bookings by start month, incl. next 2 months</span></h2><div class="chart-box"><canvas id="chWork" aria-label="Bookings per month by status"></canvas></div></div>
+  ${toInvoice.length?`<div class="sec-block"><h2 class="sec">Ready to invoice</h2><div class="list">${toInvoice.map(jobCard).join('')}</div></div>`:''}
+  <div class="sec-block"><h2 class="sec">Unpaid invoices</h2>${owed.length?`<div class="card tscroll"><table class="t"><thead><tr><th>Invoice</th><th>Client</th><th>Due</th><th class="r">Balance</th></tr></thead><tbody>${owed.map(j=>{const ps=payState(j);return `<tr data-act="openJob" data-id="${j.id}" style="cursor:pointer"><td><b>${esc(j.invoice.no)}</b><br>${payPill(ps)}</td><td>${esc(client(j.clientId)?.name||'—')}</td><td style="${ps==='overdue'?'color:var(--bad);font-weight:600':''}">${fmtD(j.invoice.due,{day:'numeric',month:'short'})}</td><td class="r">${money(totals(j).balance)}</td></tr>`}).join('')}</tbody></table></div>`:`<div class="empty"><span>Every invoice is paid.</span></div>`}</div>
+  ${top.length?`<div class="card"><h2 class="sec">Top clients, last 10 months</h2><div class="bar-list">${top.map(([n,v])=>`<div class="bar-row"><span>${esc(n)}</span><span class="num">${money(v)}</span><span class="track"><i style="width:${Math.max(3,v/topMax*100)}%"></i></span></div>`).join('')}</div></div>`:''}
+  <div class="sec-block"><h2 class="sec">Recent payments</h2>${pays.length?`<div class="card">${pays.slice(0,12).map(p=>`<div class="pay"><span><b>${money(p.amount)}</b> · ${esc(client(p.j.clientId)?.name||p.j.title)}<br><small style="color:var(--ink-2)">${fmtD(p.date)} · ${esc(p.method||'')} ${p.j.invoice?'· '+esc(p.j.invoice.no):''}</small></span><button class="btn sm" data-act="openJob" data-id="${p.j.id}">Job</button></div>`).join('')}</div>`:`<div class="empty"><span>No payments recorded yet. Open a job and tap “Record payment”.</span></div>`}</div>
+  <div class="card"><h2 class="sec">Export</h2><span class="hint">For your accountant, SARS VAT201 returns and provisional tax. Opens a save prompt.</span><div class="row"><button class="btn" data-act="exportJobs">Jobs & invoices (CSV)</button><button class="btn" data-act="exportPays">Payments (CSV)</button></div></div>`;
+}
+function css(v){return getComputedStyle(document.documentElement).getPropertyValue(v).trim()}
+function drawCharts(){
+  if(!window.Chart)return;
+  const f=finSeries(),labels=f.ms.map(k=>pd(k+'-01').toLocaleDateString('en-ZA',{month:'short',year:'2-digit'}));
+  const ink2=css('--ink-2'),line=css('--line'),font={family:'IBM Plex Sans, system-ui, sans-serif',size:11};
+  const base={responsive:true,maintainAspectRatio:false,interaction:{mode:'index',intersect:false},
+    plugins:{legend:{position:'bottom',labels:{color:ink2,font,boxWidth:10,boxHeight:10}},tooltip:{}},
+    scales:{x:{grid:{display:false},ticks:{color:ink2,font},border:{color:line}},y:{beginAtZero:true,grid:{color:line},ticks:{color:ink2,font},border:{display:false}}}};
+  const a=$('#chFin');if(a)S.charts.push(new Chart(a,{type:'bar',data:{labels,datasets:[
+    {label:'Invoiced',data:f.inv,backgroundColor:css('--accent'),borderRadius:4,maxBarThickness:22},
+    {label:'Received',data:f.rec,backgroundColor:'#FFB347',borderRadius:4,maxBarThickness:22}]},
+    options:{...base,plugins:{...base.plugins,tooltip:{callbacks:{label:c=>`${c.dataset.label}: ${money(c.parsed.y)}`}}},scales:{...base.scales,y:{...base.scales.y,ticks:{...base.scales.y.ticks,callback:v=>moneyShort(v)}}}}}));
+  const b=$('#chWork');if(b)S.charts.push(new Chart(b,{type:'bar',data:{labels,datasets:[
+    {label:'Confirmed / done',data:f.firm,backgroundColor:css('--st-confirmed'),borderRadius:3,maxBarThickness:26,stack:'s'},
+    {label:'Pencilled / blocked',data:f.pen,backgroundColor:css('--st-heavy'),borderRadius:3,maxBarThickness:26,stack:'s'},
+    {label:'Cancelled',data:f.can,backgroundColor:css('--st-cancelled'),borderRadius:3,maxBarThickness:26,stack:'s'}]},
+    options:{...base,scales:{x:{...base.scales.x,stacked:true},y:{...base.scales.y,stacked:true,ticks:{...base.scales.y.ticks,precision:0}}}}}));
+}
+
+/* ---------- settings ---------- */
+function vMore(){
+  const s=S.settings,fld=(k,l,t='text',x='')=>`<label class="field"><span>${l}</span><input name="${k}" id="set-${k}" type="${t}" value="${esc(s[k])}" ${x}></label>`;
+  return `<form class="card" data-form="settings" id="settingsForm">
+    <h2 class="sec">Your business</h2>
+    <div class="grid2">${fld('businessName','Business name')}${fld('ownerName','Your name')}</div>
+    <div class="grid2">${fld('email','Email','email')}${fld('phone','Phone','tel')}</div>
+    <div class="grid2">${fld('abn','VAT number','text','inputmode="numeric"')}${fld('regNo','Company reg. no. (CIPC)')}</div>
+    <label class="field"><span>Business address</span><textarea name="address" id="set-address" rows="2">${esc(s.address)}</textarea></label>
+    <h2 class="sec">Invoices</h2>
+    <label class="switch"><span>Registered for VAT<br><small class="hint">Adds VAT and titles invoices “Tax invoice”, as SARS requires</small></span><input type="checkbox" name="gstRegistered" id="set-gst" ${s.gstRegistered?'checked':''}></label>
+    <div class="grid3">${fld('gstRate','VAT %','number','step="0.1" min="0"')}${fld('termsDays','Payment terms (days)','number','min="0"')}<label class="field"><span>Currency</span><select name="currency" id="set-currency">${curOptions(s.currency||'AUD')}</select></label></div>
+    <div class="grid3">${fld('invoicePrefix','Invoice prefix')}${fld('nextInvoiceNo','Next invoice no.','number','min="1"')}${fld('defaultRate','Default day rate','number','step="0.01" min="0"')}</div>
+    <div class="grid3">${fld('quotePrefix','Quote prefix')}${fld('nextQuoteNo','Next quote no.','number','min="1"')}${fld('quoteValidDays','Quotes valid for (days)','number','min="1"')}</div>
+    <div class="grid2">${fld('travelRate','Travel rate per km','number','step="0.01" min="0"')}${fld('timeZone','Calendar time zone')}</div>
+    <label class="field"><span>Note printed on invoices</span><textarea name="invoiceNotes" id="set-notes" rows="2">${esc(s.invoiceNotes)}</textarea></label>
+    <h2 class="sec">How clients pay you</h2>
+    <div class="grid2">${fld('accountName','Account name')}${fld('bankName','Bank')}</div>
+    <div class="grid2">${fld('bsb','Branch code','text','inputmode="numeric"')}${fld('accountNo','Account number','text','inputmode="numeric"')}</div>
+    <div class="grid2">${fld('accountType','Account type','text','placeholder="Cheque / Current / Savings"')}${fld('swift','SWIFT code (overseas clients)')}</div>
+    <h2 class="sec">Bookings</h2>
+    <label class="field"><span>Engineers and techs you book (one per line)</span><textarea name="crew" id="set-crew" rows="3" placeholder="Sam Lee&#10;Alex Chen">${esc(s.crew)}</textarea></label>
+    <label class="switch"><span>Add new bookings to Google Calendar<br><small class="hint">You can turn this off per booking</small></span><input type="checkbox" name="autoSync" id="set-sync" ${s.autoSync?'checked':''}></label>
+    <div class="row end"><button class="btn primary" type="submit">Save settings</button></div>
+  </form>
+  <div class="card"><h2 class="sec">Connections</h2>
+    <div class="kv"><dt>Saving</dt><dd>${S.mode==='live'?'Saved to your Claude account, private to you, on every device':'This device only'}</dd>
+    <dt>Calendar</dt><dd>${S.mcp?'Google Calendar. The first sync asks your permission.':'Not available in this view'}</dd>
+    <dt>Email</dt><dd>${S.mcp?'Gmail. Invoices send from your own address.':'Not available in this view'}</dd></div>
+    <span class="hint">On iPhone, add your Google account in Settings → Calendar → Accounts and these bookings show in the Calendar app too.</span>
+  </div>`;
+}
+
+/* ---------- sheets ---------- */
+function openSheet(kind,html){const c=$('#sheetCard');c.dataset.kind=kind;c.innerHTML=html;$('#sheet').hidden=false;document.body.style.overflow='hidden'}
+function closeSheet(){$('#sheet').hidden=true;S.openJobId=null;S.draft=null;document.body.style.overflow=''}
+const head=(title,right='')=>`<div class="sheet-head"><button class="btn ghost" data-act="closeSheet">Close</button><h2>${esc(title)}</h2>${right||'<span style="width:64px"></span>'}</div>`;
+
+function openJob(id,refresh){
+  const j=S.jobs.find(x=>x.id===id);if(!j){if(refresh)closeSheet();return}
+  S.openJobId=id;
+  const sb=$('#sheetCard .sheet-body'),scroll=refresh&&sb?sb.scrollTop:0;
+  const c=client(j.clientId),t=totals(j),ps=payState(j),s=S.settings;
+  const times=[j.callTime&&`Call ${j.callTime}`,j.finishTime&&`finish ${j.finishTime}`].filter(Boolean).join(', ');
+  const kv=[['Client',c?`${esc(c.name)}${c.email?`<br><span class="num" style="font-size:13px">${esc(c.email)}</span><button class="copy" data-act="copy" data-t="${esc(c.email)}">Copy</button>`:''}${c.phone?`<br><span class="num" style="font-size:13px">${esc(c.phone)}</span><button class="copy" data-act="copy" data-t="${esc(c.phone)}">Copy</button>`:''}`:'—'],
+    ['Engineer / tech',esc([j.engineer,j.role].filter(Boolean).join(' · ')||'—')],
+    ['Times',esc(times||'All day')],
+    ['Venue / site',esc([j.venue,j.address].filter(Boolean).join(', ')||'—')],
+    ['On-site contact',esc([j.siteContact,j.sitePhone].filter(Boolean).join(' · ')||'—')],
+    ['PO / ref',esc(j.po||'—')]];
+  const calLine=j.calEventId?`On Google Calendar${j.calSyncedAt?` · synced ${new Date(j.calSyncedAt).toLocaleString('en-ZA',{day:'numeric',month:'short',hour:'numeric',minute:'2-digit'})}`:''}`:(j.calSync?'Not synced yet':'Not on your calendar');
+  openSheet('job',head(j.title||'Job',`<button class="btn ghost" data-act="editJob" data-id="${j.id}">Edit</button>`)+`<div class="sheet-body">
+    <div class="detail-head">${j.example?'<span class="tag" style="align-self:flex-start">Example</span>':''}<h3>${esc(j.title)}</h3><span class="when">${fmtRange(j.start,jobEnd(j))}${jobEnd(j)!==j.start?` · ${daysBetween(j.start,jobEnd(j))+1} days`:''}</span></div>
+    <div class="sec-block"><h2 class="sec">Status</h2><div class="status-pick">${STATUSES.map(x=>`<button class="st-${x.k}" data-act="setStatus" data-id="${j.id}" data-v="${x.k}" aria-pressed="${j.status===x.k}">${x.label}</button>`).join('')}</div></div>
+    <div class="card"><dl class="kv">${kv.map(([k,v])=>`<dt>${k}</dt><dd>${v}</dd>`).join('')}</dl>${j.notes?`<div style="white-space:pre-wrap;font-size:14px;border-top:1px solid var(--line);padding-top:10px">${esc(j.notes)}</div>`:''}</div>
+    <div class="card"><div class="row"><span class="spacer" style="min-width:160px"><b>Calendar</b><br><small class="hint">${calLine}</small></span>
+      <button class="btn sm" data-act="syncCal" data-id="${j.id}" ${S.mcp?'':'disabled'}>${j.calEventId?'Update calendar':'Add to Google Calendar'}</button></div></div>
+    <div class="card"><h2 class="sec">Charges</h2>${(j.items||[]).length?`<div class="tscroll"><table class="t"><thead><tr><th>Item</th><th class="r">Qty</th><th class="r">Rate</th><th class="r">Amount</th></tr></thead><tbody>${j.items.map(i=>`<tr><td>${esc(i.desc)}</td><td class="r">${esc(i.qty)} ${esc(i.unit)}</td><td class="r">${money(i.rate)}</td><td class="r">${money((+i.qty||0)*(+i.rate||0))}</td></tr>`).join('')}</tbody></table></div>`:'<span class="hint">No charges yet. Tap Edit to add your rates.</span>'}
+      <div class="totals"><span>Subtotal</span><span class="num">${money(t.sub)}</span>${j.gst?`<span>VAT ${t.rate}%</span><span class="num">${money(t.gst)}</span>`:''}<span class="grand">Total</span><span class="num grand">${money(t.total)}</span>${t.paid?`<span>Paid</span><span class="num">−${money(t.paid)}</span><span class="grand">Balance due</span><span class="num grand">${money(t.balance)}</span>`:''}</div></div>
+    ${quoteBlock(j,t)}
+    ${invoiceBlock(j,t,ps)}
+    <div class="card" id="payCard"><div class="row"><h2 class="sec spacer">Payments</h2>${t.balance>0||!t.total?`<button class="btn sm" data-act="showPay">Record payment</button>`:''}</div>
+      <form data-form="payment" data-id="${j.id}" id="payForm" hidden class="card" style="background:var(--bg)">
+        <div class="grid2"><label class="field"><span>Amount</span><input name="amount" id="pay-amount" type="number" step="0.01" min="0.01" required value="${t.balance>0?t.balance:''}"></label><label class="field"><span>Date paid</span><input name="date" id="pay-date" type="date" required value="${today()}"></label></div>
+        <div class="grid2"><label class="field"><span>Method</span><select name="method" id="pay-method">${METHODS.map(m=>`<option>${m}</option>`).join('')}</select></label><label class="field"><span>Note</span><input name="note" id="pay-note" placeholder="e.g. deposit"></label></div>
+        <div class="row end"><button type="button" class="btn" data-act="hidePay">Cancel</button><button class="btn primary" type="submit">Save payment</button></div></form>
+      ${(j.payments||[]).length?j.payments.map(p=>`<div class="pay"><span><b>${money(p.amount)}</b> · ${fmtD(p.date)}<br><small style="color:var(--ink-2)">${esc([p.method,p.note].filter(Boolean).join(' · '))}</small></span><button class="btn sm danger" data-act="delPay" data-id="${j.id}" data-p="${p.id}">Remove</button></div>`).join(''):'<span class="hint">No payments recorded.</span>'}</div>
+    <div class="row"><button class="btn" data-act="dupJob" data-id="${j.id}">Duplicate booking</button><span class="spacer"></span><button class="btn danger" data-act="askDel">Delete</button></div>
+    <div class="warnbox" id="delConfirm" hidden><b>Delete this booking?</b> Its invoice and payment records go with it${j.calEventId?', and the event is removed from Google Calendar':''}. This cannot be undone.<div class="row end" style="margin-top:8px"><button class="btn sm" data-act="cancelDel">Keep it</button><button class="btn sm danger solid" data-act="delJob" data-id="${j.id}">Delete booking</button></div></div>
+  </div>`);
+  if(refresh){const nb=$('#sheetCard .sheet-body');if(nb)nb.scrollTop=scroll}
+}
+function quoteBlock(j,t){
+  const s=S.settings,q=j.quote;
+  if(!q)return `<div class="card"><div class="row"><span class="spacer" style="min-width:160px"><b>Quote</b><br><small class="hint">Creates quote ${esc(s.quotePrefix)}${esc(s.nextQuoteNo)}, valid for ${esc(s.quoteValidDays)} days. Nothing is sent yet.</small></span><button class="btn sm" data-act="makeQuote" data-id="${j.id}" ${t.total>0?'':'disabled'}>Create quote</button></div>${t.total>0?'':'<span class="hint">Add charges first.</span>'}</div>`;
+  const exp=q.validUntil&&q.validUntil<today()&&!q.acceptedAt;
+  const pill=q.acceptedAt?'<span class="pill pp-paid">Accepted</span>':exp?'<span class="pill pp-overdue">Expired</span>':q.sentAt?'<span class="pill pp-sent">Quoted</span>':'<span class="pill pp-draft">Quote not sent</span>';
+  return `<div class="card"><div class="row"><h2 class="sec spacer">Quote ${esc(q.no)}</h2>${pill}</div>
+    <div class="grid2"><label class="field"><span>Quote date</span><input type="date" id="quo-issued" data-act-change="invDate" data-doc="quote" data-k="issued" data-id="${j.id}" value="${esc(q.issued)}"></label><label class="field"><span>Valid until</span><input type="date" id="quo-valid" data-act-change="invDate" data-doc="quote" data-k="validUntil" data-id="${j.id}" value="${esc(q.validUntil)}"></label></div>
+    <span class="hint">${q.sentAt?`Sent ${new Date(q.sentAt).toLocaleString('en-ZA',{day:'numeric',month:'short',hour:'numeric',minute:'2-digit'})}${q.sentTo?' to '+esc(q.sentTo):''}`:'Not sent yet'}${q.acceptedAt?` · accepted ${fmtD(iso(new Date(q.acceptedAt)))}`:''} · Uses this job's current charges, ${money(t.total)}.</span>
+    <div class="row">
+      <button class="btn ${q.sentAt?'':'primary'}" data-act="emailQuote" data-id="${j.id}" ${S.mcp?'':'disabled'}>${q.sentAt?'Resend quote':'Email quote'}</button>
+      <button class="btn" data-act="sharePdf" data-k="quote" data-id="${j.id}">Share PDF</button>
+      <button class="btn" data-act="pdfInv" data-k="quote" data-id="${j.id}">Save PDF</button>
+      ${q.sentAt?'':`<button class="btn" data-act="markQuoteSent" data-id="${j.id}">Mark as sent</button>`}
+      ${q.acceptedAt?'':`<button class="btn" data-act="acceptQuote" data-id="${j.id}">Client accepted</button>`}
+    </div></div>`;
+}
+function invoiceBlock(j,t,ps){
+  if(!j.invoice)return `<div class="card"><div class="row"><span class="spacer" style="min-width:160px"><b>Invoice</b><br><small class="hint">Creates invoice ${esc(S.settings.invoicePrefix)}${esc(S.settings.nextInvoiceNo)}, due in ${esc(S.settings.termsDays)} days. Nothing is sent yet.</small></span><button class="btn primary sm" data-act="makeInvoice" data-id="${j.id}" ${t.total>0?'':'disabled'}>Create invoice</button></div>${t.total>0?'':'<span class="hint">Add charges first.</span>'}</div>`;
+  const i=j.invoice;
+  return `<div class="card"><div class="row"><h2 class="sec spacer">Invoice ${esc(i.no)}</h2>${payPill(ps)}</div>
+    <div class="grid2"><label class="field"><span>Issued</span><input type="date" id="inv-issued" data-act-change="invDate" data-k="issued" data-id="${j.id}" value="${esc(i.issued)}"></label><label class="field"><span>Due</span><input type="date" id="inv-due" data-act-change="invDate" data-k="due" data-id="${j.id}" value="${esc(i.due)}"></label></div>
+    <span class="hint">${i.sentAt?`Sent ${new Date(i.sentAt).toLocaleString('en-ZA',{day:'numeric',month:'short',hour:'numeric',minute:'2-digit'})}${i.sentTo?' to '+esc(i.sentTo):''}`:'Not sent yet'}${(i.reminders||[]).length?` · ${i.reminders.length} reminder${i.reminders.length>1?'s':''} sent`:''}</span>
+    <div class="row">
+      <button class="btn primary" data-act="emailInv" data-id="${j.id}" ${S.mcp?'':'disabled'}>${ps==='overdue'||(i.sentAt&&t.balance>0)?'Send reminder':'Email invoice'}</button>
+      <button class="btn" data-act="sharePdf" data-k="invoice" data-id="${j.id}">Share PDF</button>
+      <button class="btn" data-act="pdfInv" data-k="invoice" data-id="${j.id}">Save PDF</button>
+      ${i.sentAt?'':`<button class="btn" data-act="markSent" data-id="${j.id}">Mark as sent</button>`}
+    </div></div>`;
+}
+
+/* job form */
+function blankJob(date){
+  const s=S.settings;
+  return {id:newId(),title:'',clientId:'',status:'heavy',engineer:'',role:'',start:date||today(),end:'',callTime:'',finishTime:'',venue:'',address:'',siteContact:'',sitePhone:'',po:'',notes:'',
+    items:s.defaultRate>0?[{desc:'Day rate',qty:1,unit:s.defaultUnit||'day',rate:+s.defaultRate,auto:(s.defaultUnit||'day')==='day'}]:[],gst:!!s.gstRegistered,calSync:!!(s.autoSync&&S.mcp),payments:[],createdAt:Date.now(),_new:true};
+}
+function openJobForm(j){
+  S.draft=clone(j);const d=S.draft;
+  const nd=bookDays(d);(d.items||[]).forEach(i=>{if(i.unit==='day'&&i.auto===undefined)i.auto=(+i.qty===nd)});
+  const crew=[...new Set([...(S.settings.crew||'').split('\n').map(x=>x.trim()),...S.jobs.map(x=>x.engineer)].filter(Boolean))];
+  const f=(k,l,t='text',x='')=>`<label class="field"><span>${l}</span><input name="${k}" id="jf-${k}" type="${t}" value="${esc(d[k])}" ${x}></label>`;
+  openSheet('jobform',head(d._new?'New booking':'Edit booking',`<button class="btn primary sm" type="submit" form="jobForm">Save</button>`)+`<div class="sheet-body"><form id="jobForm" data-form="job" class="sec-block" style="gap:16px">
+    <div class="card">
+      ${f('title','Job title','text','required placeholder="e.g. FOH engineer – corporate awards night"')}
+      <label class="field"><span>Client</span><select name="clientId" id="jf-clientId"><option value="">Choose a client</option>${S.clients.map(c=>`<option value="${c.id}" ${c.id===d.clientId?'selected':''}>${esc(c.name)}</option>`).join('')}<option value="__new">+ New client…</option></select></label>
+      <div id="newClientBox" hidden class="grid2"><label class="field"><span>New client name</span><input id="jf-ncName" name="ncName"></label><label class="field"><span>Client email</span><input id="jf-ncEmail" name="ncEmail" type="email"></label></div>
+    </div>
+    <div class="card"><h2 class="sec">Status</h2><div class="status-pick" id="jfStatus">${STATUSES.map(x=>`<button type="button" class="st-${x.k}" data-act="draftStatus" data-v="${x.k}" aria-pressed="${d.status===x.k}">${x.label}</button>`).join('')}</div></div>
+    <div class="card"><h2 class="sec">When</h2>
+      <div class="grid2">${f('start','Start date','date','required')}${f('end','End date','date')}</div>
+      <div class="grid2">${f('callTime','Call time','time')}${f('finishTime','Finish time','time')}</div>
+      <span class="hint">Leave the times empty for an all-day booking.</span><div id="clash"></div>
+    </div>
+    <div class="card"><h2 class="sec">Who and where</h2>
+      <div class="grid2"><label class="field"><span>Engineer / tech</span><input name="engineer" id="jf-engineer" list="crewList" value="${esc(d.engineer)}"><datalist id="crewList">${crew.map(c=>`<option value="${esc(c)}">`).join('')}</datalist></label>${f('role','Role','text','placeholder="e.g. FOH, monitors, lighting"')}</div>
+      <div class="grid2">${f('venue','Venue / site')}${f('address','Address')}</div>
+      <div class="grid2">${f('siteContact','On-site contact')}${f('sitePhone','Contact phone','tel')}</div>
+      ${f('po','Client PO / reference')}
+    </div>
+    <div class="card"><h2 class="sec">Charges</h2><div class="items" id="items"></div><div id="dayHint"></div>
+      <div class="row"><button type="button" class="btn sm" data-act="addItem">+ Line</button><button type="button" class="btn sm" data-act="addItem" data-d="Day rate" data-u="day" data-r="${S.settings.defaultRate||''}">+ Day rate</button><button type="button" class="btn sm" data-act="addItem" data-d="Overtime" data-u="hour">+ Overtime</button><button type="button" class="btn sm" data-act="addItem" data-d="Travel" data-u="km" data-r="${S.settings.travelRate||''}">+ Travel km</button><button type="button" class="btn sm" data-act="addItem" data-d="Expenses (receipts attached)" data-u="flat">+ Expense</button></div>
+      <label class="switch"><span>Charge VAT (${esc(S.settings.gstRate)}%)</span><input type="checkbox" id="jf-gst" name="gst" ${d.gst?'checked':''}></label>
+      <div class="totals" id="jfTotals"></div></div>
+    <div class="card"><label class="field"><span>Notes</span><textarea name="notes" id="jf-notes" rows="3" placeholder="Gear, parking, dress code, run sheet…">${esc(d.notes)}</textarea></label>
+      <label class="switch"><span>Keep on Google Calendar<br><small class="hint">${S.mcp?'Creates or updates the event when you save':'Calendar is not available in this view'}</small></span><input type="checkbox" id="jf-calSync" name="calSync" ${d.calSync?'checked':''} ${S.mcp?'':'disabled'}></label></div>
+  </form></div><div class="sheet-foot"><button class="btn" data-act="closeSheet">Cancel</button><button class="btn primary" type="submit" form="jobForm">Save booking</button></div>`);
+  renderItems();checkClash();
+}
+function renderItems(){
+  const d=S.draft,box=$('#items');if(!box)return;
+  box.innerHTML=(d.items||[]).map((i,n)=>`<div class="item" data-n="${n}">
+    <input class="inp desc" id="it-d-${n}" data-item="desc" value="${esc(i.desc)}" placeholder="Description" aria-label="Description">
+    <input class="inp" id="it-q-${n}" data-item="qty" type="number" step="0.25" min="0" value="${esc(i.qty)}" aria-label="Quantity">
+    <select class="inp" id="it-u-${n}" data-item="unit" aria-label="Unit">${UNITS.map(u=>`<option ${u===i.unit?'selected':''}>${u}</option>`).join('')}</select>
+    <input class="inp" id="it-r-${n}" data-item="rate" type="number" step="0.01" min="0" value="${esc(i.rate)}" placeholder="Rate" aria-label="Rate">
+    <span class="amt">${money((+i.qty||0)*(+i.rate||0))}</span>
+    <button type="button" class="xbtn" data-act="rmItem" data-n="${n}" aria-label="Remove line">✕</button></div>`).join('')||'<span class="hint">No charges yet. Add your day rate, overtime, travel or expenses.</span>';
+  renderDayHint();renderDraftTotals();
+}
+function renderDayHint(){
+  const d=S.draft,el=$('#dayHint');if(!el||!d)return;
+  const nd=bookDays(d),days=(d.items||[]).filter(i=>i.unit==='day'),n=`${nd} booking ${nd===1?'day':'days'}`;
+  el.innerHTML=!days.length?'':days.every(i=>i.auto)?`<span class="hint">Day rate × ${n}, counted from the start and end dates. Type a different quantity to override.</span>`
+    :`<span class="hint">Day-rate quantity set by hand.<button type="button" class="copy" data-act="matchDays">Match ${n}</button></span>`;
+}
+function syncDayQty(force){
+  const d=S.draft;if(!d)return;const nd=bookDays(d);
+  (d.items||[]).forEach(i=>{if(i.unit==='day'&&(force||i.auto)){i.qty=nd;i.auto=true}});
+  renderItems();
+}
+function renderDraftTotals(){const t=totals(S.draft),el=$('#jfTotals');if(el)el.innerHTML=`<span>Subtotal</span><span class="num">${money(t.sub)}</span>${S.draft.gst?`<span>VAT</span><span class="num">${money(t.gst)}</span>`:''}<span class="grand">Total</span><span class="num grand">${money(t.total)}</span>`}
+function checkClash(){
+  const d=S.draft,box=$('#clash');if(!box||!d)return;
+  const e=d.end||d.start,act=['blocked','heavy','confirmed'];
+  if(!d.start||!act.includes(d.status)){box.innerHTML='';return}
+  const hits=S.jobs.filter(j=>j.id!==d.id&&act.includes(j.status)&&j.start<=e&&jobEnd(j)>=d.start&&(!d.engineer||!j.engineer||j.engineer.trim().toLowerCase()===d.engineer.trim().toLowerCase()));
+  box.innerHTML=hits.length?`<div class="warnbox"><b>Date clash${d.engineer?` for ${esc(d.engineer)}`:''}:</b> ${hits.map(j=>`${esc(j.title)} (${ST[j.status].label}, ${fmtRange(j.start,jobEnd(j))})`).join('; ')}. You can still save.</div>`:'';
+}
+function readJobForm(){
+  const fm=$('#jobForm'),d=S.draft;
+  ['title','start','end','callTime','finishTime','engineer','role','venue','address','siteContact','sitePhone','po','notes'].forEach(k=>{const el=fm.elements[k];if(el)d[k]=el.value.trim()});
+  d.clientId=fm.elements.clientId.value;d.gst=$('#jf-gst').checked;d.calSync=$('#jf-calSync').checked;
+  if(d.end&&d.end<d.start)d.end=d.start;if(d.end===d.start)d.end='';
+  d.items=(d.items||[]).filter(i=>i.desc||+i.rate);
+}
+
+/* client forms */
+function openClient(id){
+  const c=client(id);if(!c)return;const st=clientStats(c);
+  const js=S.jobs.filter(j=>j.clientId===id).slice().reverse();
+  openSheet('client',head(c.name,`<button class="btn ghost" data-act="editClient" data-id="${id}">Edit</button>`)+`<div class="sheet-body">
+    <div class="detail-head"><h3>${esc(c.name)}</h3><span class="when">${st.n} jobs · ${money(st.billed)} booked${st.owed>0?` · <b style="color:var(--warn)">${money(st.owed)} owed</b>`:''}</span></div>
+    <div class="card"><dl class="kv">
+      <dt>Contact</dt><dd>${esc(c.contact||'—')}</dd>
+      <dt>Email</dt><dd>${c.email?`<span class="num" style="font-size:13px">${esc(c.email)}</span><button class="copy" data-act="copy" data-t="${esc(c.email)}">Copy</button>`:'—'}</dd>
+      <dt>Phone</dt><dd>${c.phone?`<span class="num" style="font-size:13px">${esc(c.phone)}</span><button class="copy" data-act="copy" data-t="${esc(c.phone)}">Copy</button>`:'—'}</dd>
+      <dt>Billing address</dt><dd style="white-space:pre-wrap">${esc(c.address||'—')}</dd>
+      <dt>VAT number</dt><dd>${esc(c.abn||'—')}</dd>
+      ${c.notes?`<dt>Notes</dt><dd style="white-space:pre-wrap">${esc(c.notes)}</dd>`:''}</dl></div>
+    <div class="row"><button class="btn primary" data-act="newJob" data-client="${id}">+ Booking for ${esc(c.name)}</button></div>
+    <div class="sec-block"><h2 class="sec">Jobs</h2>${js.length?`<div class="list">${js.map(jobCard).join('')}</div>`:'<span class="hint">No jobs yet.</span>'}</div>
+  </div>`);
+}
+function openClientForm(c){
+  const d=c||{id:newId(),name:'',contact:'',email:'',phone:'',address:'',abn:'',notes:'',_new:true};
+  const f=(k,l,t='text')=>`<label class="field"><span>${l}</span><input name="${k}" id="cf-${k}" type="${t}" value="${esc(d[k])}" ${k==='name'?'required':''}></label>`;
+  openSheet('clientform',head(d._new?'New client':'Edit client',`<button class="btn primary sm" type="submit" form="clientForm">Save</button>`)+`<div class="sheet-body"><form id="clientForm" data-form="client" data-id="${d.id}" data-new="${d._new?1:''}" class="card">
+    ${f('name','Company or client name')}${f('contact','Contact person')}
+    <div class="grid2">${f('email','Email for invoices','email')}${f('phone','Phone','tel')}</div>
+    <label class="field"><span>Billing address</span><textarea name="address" id="cf-address" rows="2">${esc(d.address)}</textarea></label>
+    ${f('abn','Client VAT number (if VAT registered)')}
+    <label class="field"><span>Notes</span><textarea name="notes" id="cf-notes" rows="2" placeholder="Accounts contact, PO rules, preferred rates…">${esc(d.notes)}</textarea></label>
+    ${d._new?'':`<div class="row"><span class="spacer"></span><button type="button" class="btn danger" data-act="askDel">Delete client</button></div><div class="warnbox" id="delConfirm" hidden>Delete ${esc(d.name)}? Their jobs stay, without a client.<div class="row end" style="margin-top:8px"><button type="button" class="btn sm" data-act="cancelDel">Keep</button><button type="button" class="btn sm danger solid" data-act="delClient" data-id="${d.id}">Delete client</button></div></div>`}
+  </form></div>`);
+}
+
+/* ---------- connectors ---------- */
+function mcpMsg(e,server){
+  switch(e?.code){
+    case 'server_not_connected':case 'selection_required':return `${server} is not connected. Add it in claude.ai Settings → Connectors, then try again.`;
+    case 'needs_reauth':return `Reconnect ${server} in claude.ai Settings → Connectors, then try again.`;
+    case 'not_in_manifest':return `${server} is switched off for this app. Turn it on in the app's Permissions menu.`;
+    case 'approval_required':case 'consent_required':return `${server} needs your approval. Tap the button again and choose Allow.`;
+    case 'blocked_by_policy':return `Your organisation blocks this ${server} action.`;
+    case 'tool_error':return `${server} said: ${e.message||'the request failed'}`;
+    case 'server_unavailable':case 'upstream_error':return `${server} did not answer. Check ${server} before trying again, it may have gone through.`;
+    default:return `${server} is not available here right now.`;
+  }
+}
+function pickId(p){if(!p||typeof p!=='object')return null;return p.id||p.eventId||p.event?.id||p.result?.id||null}
+async function syncCalendar(j){
+  if(!S.mcp)throw {code:'not_granted'};
+  const c=client(j.clientId),st=ST[j.status],timed=!!j.callTime,end=jobEnd(j);
+  let startTime,endTime;
+  if(timed){startTime=`${j.start}T${j.callTime}:00`;
+    let fin=j.finishTime||'';
+    if(!fin){const [h,m]=j.callTime.split(':').map(Number);fin=`${String(Math.min(23,h+1)).padStart(2,'0')}:${String(m).padStart(2,'0')}`}
+    let ed=end;if(ed===j.start&&fin<=j.callTime)ed=addDays(ed,1);
+    endTime=`${ed}T${fin}:00`;
+  }else{startTime=`${j.start}T00:00:00`;endTime=`${addDays(end,1)}T00:00:00`}
+  const prefix=j.status==='confirmed'?'':`[${st.label}] `;
+  const desc=[`Status: ${st.label}`,c&&`Client: ${c.name}`,j.engineer&&`Engineer / tech: ${j.engineer}${j.role?' ('+j.role+')':''}`,j.siteContact&&`On-site: ${j.siteContact} ${j.sitePhone||''}`,j.po&&`PO / ref: ${j.po}`,j.notes&&`\n${j.notes}`,'\nManaged in My Booking 360'].filter(Boolean).join('\n');
+  const input={...(S.settings.timeZone?{timeZone:S.settings.timeZone}:{}),summary:`${prefix}${j.title}${j.engineer?' — '+j.engineer:''}`,description:desc,location:[j.venue,j.address].filter(Boolean).join(', '),colorId:st.gcal,
+    availability:['cancelled','notdone'].includes(j.status)?'AVAILABILITY_FREE':'AVAILABILITY_BUSY',allDay:!timed,startTime,endTime};
+  if(!input.location)delete input.location;
+  let id=j.calEventId;
+  if(id){await S.mcp.callTool('Google Calendar','update_event',{eventId:id,notificationLevel:'NONE',...input})}
+  else{const r=await S.mcp.callTool('Google Calendar','create_event',{...input,notificationLevel:'NONE'});id=pickId(r.payload)}
+  return id;
+}
+async function doSync(j,quiet){
+  try{const id=await syncCalendar(j);const fresh=clone(S.jobs.find(x=>x.id===j.id)||j);fresh.calEventId=id||fresh.calEventId||null;fresh.calSyncedAt=Date.now();fresh.calSync=true;await store.saveJob(fresh);if(!quiet||!j.calEventId)toast(id?'Google Calendar updated':'Added to Google Calendar');return true}
+  catch(e){if(e?.code)toast(mcpMsg(e,'Google Calendar'),1);return false}
+}
+
+/* invoice pdf */
+function buildPdf(j,kind='invoice'){
+  const {jsPDF}=window.jspdf;const doc=new jsPDF({unit:'mm',format:'a4'});
+  const Q=kind==='quote',s=S.settings,c=client(j.clientId)||{},t=totals(j),i=Q?j.quote:j.invoice,W=210,L=18,R=W-18;
+  const cur=v=>money(v).replace(/[\u00a0\u202f]/g,' ');
+  let y=22;
+  doc.setTextColor(20,26,42);doc.setFont('helvetica','bold');doc.setFontSize(18);doc.text(s.businessName||s.ownerName||'Your business',L,y);
+  doc.setFontSize(20);doc.text(Q?'QUOTATION':s.gstRegistered?'TAX INVOICE':'INVOICE',R,y,{align:'right'});
+  doc.setFont('helvetica','normal');doc.setFontSize(9.5);doc.setTextColor(70,81,102);
+  let ly=y+6;[s.businessName&&s.ownerName?s.ownerName:'',...(s.address||'').split('\n'),s.abn&&`VAT no. ${s.abn}`,s.regNo&&`Reg. no. ${s.regNo}`,s.email,s.phone].filter(Boolean).forEach(l=>{doc.text(String(l),L,ly);ly+=4.6});
+  let ry=y+7;(Q?[['Quote no.',i.no],['Date',fmtLong(i.issued)],['Valid until',fmtLong(i.validUntil)],j.po&&['Your ref',j.po]]:[['Invoice no.',i.no],['Issued',fmtLong(i.issued)],['Due',fmtLong(i.due)],j.po&&['Your ref',j.po]]).filter(Boolean).forEach(([k,v])=>{doc.setTextColor(118,130,151);doc.text(k,R-48,ry);doc.setTextColor(20,26,42);doc.text(String(v),R,ry,{align:'right'});ry+=5});
+  y=Math.max(ly,ry)+8;
+  doc.setDrawColor(211,218,229);doc.line(L,y,R,y);y+=8;
+  doc.setFontSize(8.5);doc.setTextColor(118,130,151);doc.text(Q?'PREPARED FOR':'BILL TO',L,y);doc.text('JOB',110,y);y+=5;
+  doc.setFontSize(10);doc.setTextColor(20,26,42);
+  let by=y;[c.name,c.contact,...(c.address||'').split('\n'),c.abn&&`VAT no. ${c.abn}`,c.email].filter(Boolean).forEach(l=>{doc.text(String(l),L,by);by+=4.8});
+  let jy=y;doc.splitTextToSize(j.title||'',R-110).forEach(l=>{doc.setFont('helvetica','bold');doc.text(l,110,jy);jy+=4.8});doc.setFont('helvetica','normal');
+  [fmtRange(j.start,jobEnd(j)),[j.venue,j.address].filter(Boolean).join(', '),j.engineer&&`Engineer / tech: ${j.engineer}${j.role?' ('+j.role+')':''}`].filter(Boolean).forEach(l=>{doc.splitTextToSize(l,R-110).forEach(x=>{doc.text(x,110,jy);jy+=4.8})});
+  y=Math.max(by,jy)+8;
+  doc.setFillColor(232,236,243);doc.rect(L,y-5,R-L,8,'F');doc.setFontSize(8.5);doc.setTextColor(70,81,102);
+  doc.text('DESCRIPTION',L+2,y);doc.text('QTY',125,y,{align:'right'});doc.text('RATE',155,y,{align:'right'});doc.text('AMOUNT',R-2,y,{align:'right'});y+=8;
+  doc.setFontSize(10);doc.setTextColor(20,26,42);
+  (j.items||[]).forEach(it=>{const lines=doc.splitTextToSize(it.desc||'',95);if(y+lines.length*5>265){doc.addPage();y=22}
+    doc.text(lines,L+2,y);doc.text(`${it.qty} ${it.unit}`,125,y,{align:'right'});doc.text(cur(it.rate),155,y,{align:'right'});doc.text(cur((+it.qty||0)*(+it.rate||0)),R-2,y,{align:'right'});
+    y+=lines.length*5+2;doc.setDrawColor(232,236,243);doc.line(L,y-3,R,y-3)});
+  y+=4;const tl=(k,v,b)=>{doc.setFont('helvetica',b?'bold':'normal');doc.text(k,150,y,{align:'right'});doc.text(v,R-2,y,{align:'right'});y+=6};
+  tl('Subtotal',cur(t.sub));if(j.gst)tl(`VAT (${t.rate}%)`,cur(t.gst));tl(j.gst?'Total incl. VAT':'Total',cur(t.total),1);
+  if(!Q&&t.paid){tl('Paid',`-${cur(t.paid)}`);tl('Balance due',cur(t.balance),1)}
+  if(!j.gst&&s.gstRegistered===false){doc.setFontSize(8.5);doc.setTextColor(118,130,151);doc.text('No VAT has been charged.',R-2,y,{align:'right'});y+=6}
+  y+=6;if(y>240){doc.addPage();y=22}
+  doc.setFont('helvetica','bold');doc.setFontSize(10);doc.setTextColor(20,26,42);doc.text(Q?'Accepting this quote':'How to pay',L,y);y+=5;doc.setFont('helvetica','normal');doc.setFontSize(9.5);doc.setTextColor(70,81,102);
+  (Q?[`This quote is valid until ${fmtLong(i.validUntil)}.`,`To accept, reply to this email or contact us quoting ${i.no}.`,`Dates are held as provisional until the quote is accepted.`,`Payment terms: ${s.termsDays} days from invoice.`]:[s.accountName&&`Account name: ${s.accountName}`,s.bankName&&`Bank: ${s.bankName}`,s.bsb&&`Branch code: ${s.bsb}`,s.accountNo&&`Account no.: ${s.accountNo}`,s.accountType&&`Account type: ${s.accountType}`,s.swift&&`SWIFT: ${s.swift}`,`Reference: ${i.no}`,`Please pay by ${fmtLong(i.due)}.`]).filter(Boolean).forEach(l=>{doc.text(l,L,y);y+=4.6});
+  if(s.invoiceNotes){y+=4;doc.splitTextToSize(s.invoiceNotes,R-L).forEach(l=>{doc.text(l,L,y);y+=4.6})}
+  return doc;
+}
+function invFileName(j,kind){return `${(kind==='quote'?j.quote:j.invoice).no} ${(client(j.clientId)?.name||'invoice').replace(/[^\w\- ]+/g,'')}.pdf`}
+function openEmail(j,kind='invoice'){
+  const Q=kind==='quote',c=client(j.clientId)||{},t=totals(j),i=Q?j.quote:j.invoice,s=S.settings,rem=!Q&&!!i.sentAt&&t.balance>0;
+  const who=s.ownerName||s.businessName||'';
+  const msg=Q?`Hi ${c.contact||c.name||''},\n\nThank you for the enquiry. Please find attached quote ${i.no} for ${j.title} (${fmtRange(j.start,jobEnd(j))}).\n\nTotal: ${money(t.total)}${j.gst?' incl. VAT':''}\nValid until: ${fmtLong(i.validUntil)}\n\nTo confirm the booking, simply reply to this email.\n\nKind regards,\n${who}`
+    :rem?`Hi ${c.contact||c.name||''},\n\nA friendly reminder that invoice ${i.no} for ${j.title} (${fmtRange(j.start,jobEnd(j))}) has ${money(t.balance)} outstanding, due ${fmtLong(i.due)}. A copy is attached.\n\nIf you have already paid, thank you, please ignore this.\n\nKind regards,\n${who}`
+    :`Hi ${c.contact||c.name||''},\n\nPlease find attached invoice ${i.no} for ${j.title} (${fmtRange(j.start,jobEnd(j))}).\n\nAmount due: ${money(t.balance)}\nDue date: ${fmtLong(i.due)}\n\nPayment details are on the invoice. Please use ${i.no} as the reference.\n\nThanks,\n${who}`;
+  openSheet('email',head(Q?'Email quote':rem?'Payment reminder':'Email invoice')+`<div class="sheet-body"><form id="emailForm" data-form="email" data-id="${j.id}" data-kind="${kind}" data-rem="${rem?1:''}" class="card">
+    <label class="field"><span>To</span><input name="to" id="em-to" type="email" required value="${esc(c.email||'')}" placeholder="client@example.com"></label>
+    <label class="field"><span>CC (optional)</span><input name="cc" id="em-cc" type="email"></label>
+    <label class="field"><span>Subject</span><input name="subject" id="em-subject" required value="${esc(Q?`Quote ${i.no} – ${j.title}`:`${rem?'Reminder: ':''}Invoice ${i.no} – ${j.title}`)}"></label>
+    <label class="field"><span>Message</span><textarea name="body" id="em-body" rows="11">${esc(msg)}</textarea></label>
+    <span class="hint">Attached: ${esc(invFileName(j,kind))} · ${Q?money(t.total)+' quoted':money(t.balance)+' due'}. Sends from your Gmail.</span>
+  </form></div><div class="sheet-foot"><button class="btn" data-act="emailDraft" data-id="${j.id}">Save to Gmail drafts</button><button class="btn primary" type="submit" form="emailForm" id="sendBtn">Send now</button></div>`);
+}
+function emailPayload(j,fm){
+  const kind=fm.dataset.kind||'invoice',doc=buildPdf(j,kind),b64=doc.output('datauristring').split(',')[1];
+  const body=fm.elements.body.value,html=`<div style="font-family:Arial,sans-serif;font-size:14px;line-height:1.5;color:#131A2A">${body.split(/\n\n+/).map(p=>`<p>${esc(p).replace(/\n/g,'<br>')}</p>`).join('')}</div>`;
+  const p={to:[fm.elements.to.value.trim()],subject:fm.elements.subject.value.trim(),body,htmlBody:html,attachments:[{content:b64,filename:invFileName(j,kind),mimeType:'application/pdf'}]};
+  const cc=fm.elements.cc.value.trim();if(cc)p.cc=[cc];return p;
+}
+async function busy(btn,fn){if(!btn)return fn();const old=btn.innerHTML;btn.disabled=true;btn.innerHTML='<span class="spin"></span>';try{return await fn()}finally{if(btn.isConnected){btn.disabled=false;btn.innerHTML=old}}}
+
+/* csv */
+const csvCell=v=>{const s=String(v??'');return /[",\n]/.test(s)?`"${s.replace(/"/g,'""')}"`:s};
+async function saveFile(filename,data){
+  if(!S.dl){toast('Saving files is not available in this view.',1);return}
+  try{await S.dl.save({filename,data})}catch(e){if(e?.code!=='declined')toast(e?.code==='rate_limited'?'A save prompt is already open.':'Could not save the file here.',1)}
+}
+
+/* ---------- actions ---------- */
+const ACT={
+  tab:d=>{S.view=d.v;closeSheet();renderTabs();render();window.scrollTo(0,0)},
+  newJob:d=>{const j=blankJob(d.date);if(d.client)j.clientId=d.client;openJobForm(j)},
+  openJob:d=>openJob(d.id),
+  editJob:d=>{const j=S.jobs.find(x=>x.id===d.id);if(j)openJobForm(j)},
+  dupJob:d=>{const j=clone(S.jobs.find(x=>x.id===d.id));Object.assign(j,{id:newId(),status:'heavy',invoice:null,quote:null,payments:[],calEventId:null,calSyncedAt:null,example:false,createdAt:Date.now(),_new:true});delete j.invoice;delete j.quote;openJobForm(j)},
+  closeSheet:()=>closeSheet(),
+  copy:d=>copyText(d.t),
+  jobFilter:d=>{S.jobFilter=d.v;render()},
+  calDay:d=>{S.calSel=d.d;const m=d.d.slice(0,7)+'-01';if(m!==S.calMonth)S.calMonth=m;render()},
+  calMove:d=>{const m=pd(S.calMonth);m.setMonth(m.getMonth()+ +d.n);S.calMonth=iso(m);render()},
+  calToday:()=>{const n=new Date();S.calMonth=iso(new Date(n.getFullYear(),n.getMonth(),1));S.calSel=today();render()},
+  draftStatus:(d,b)=>{S.draft.status=d.v;b.parentElement.querySelectorAll('button').forEach(x=>x.setAttribute('aria-pressed',x===b));checkClash()},
+  addItem:d=>{S.draft.items=S.draft.items||[];const u=d.u||'day',auto=u==='day';S.draft.items.push({desc:d.d||'',qty:auto?bookDays(S.draft):1,unit:u,rate:d.r?+d.r:'',auto});renderItems();const n=S.draft.items.length-1;$(`#it-${d.d?'r':'d'}-${n}`)?.focus()},
+  rmItem:d=>{S.draft.items.splice(+d.n,1);renderItems()},
+  matchDays:()=>syncDayQty(true),
+  setStatus:async(d,b)=>{const j=clone(S.jobs.find(x=>x.id===d.id));if(!j||j.status===d.v)return;j.status=d.v;await store.saveJob(j);toast(`Marked ${ST[d.v].label.toLowerCase()}`);if(j.calEventId&&S.mcp)doSync(j,true)},
+  syncCal:async(d,b)=>{const j=S.jobs.find(x=>x.id===d.id);await busy(b,()=>doSync(j))},
+  makeInvoice:async(d,b)=>{const j=clone(S.jobs.find(x=>x.id===d.id)),s=S.settings,no=`${s.invoicePrefix||''}${s.nextInvoiceNo}`;
+    j.invoice={no,issued:today(),due:addDays(today(),+s.termsDays||0),gstRate:+s.gstRate||0,sentAt:null,reminders:[]};
+    await busy(b,async()=>{await store.saveSettings({nextInvoiceNo:(+s.nextInvoiceNo||0)+1});await store.saveJob(j)});toast(`Invoice ${no} created`)},
+  markSent:async d=>{const j=clone(S.jobs.find(x=>x.id===d.id));j.invoice.sentAt=Date.now();await store.saveJob(j);toast('Marked as sent')},
+  pdfInv:async d=>{const j=S.jobs.find(x=>x.id===d.id),k=d.k||'invoice';if(!window.jspdf){toast('The PDF maker did not load. Reload and try again.',1);return}await saveFile(invFileName(j,k),buildPdf(j,k).output('blob'))},
+  sharePdf:async d=>{const j=S.jobs.find(x=>x.id===d.id),k=d.k||'invoice';if(!window.jspdf){toast('The PDF maker did not load. Reload and try again.',1);return}
+    const name=invFileName(j,k),blob=buildPdf(j,k).output('blob');let file=null;try{file=new File([blob],name,{type:'application/pdf'})}catch{}
+    if(file&&navigator.canShare&&navigator.canShare({files:[file]})){try{await navigator.share({files:[file],title:name.replace(/\.pdf$/,'')});return}catch(e){if(e?.name==='AbortError')return}}
+    toast('Sharing is not available here, so the PDF is being saved instead.');await saveFile(name,blob)},
+  makeQuote:async(d,b)=>{const j=clone(S.jobs.find(x=>x.id===d.id)),s=S.settings,no=`${s.quotePrefix||''}${s.nextQuoteNo||1001}`;
+    j.quote={no,issued:today(),validUntil:addDays(today(),+s.quoteValidDays||30),sentAt:null};
+    await busy(b,async()=>{await store.saveSettings({nextQuoteNo:(+s.nextQuoteNo||1001)+1});await store.saveJob(j)});toast(`Quote ${no} created`)},
+  emailQuote:d=>{const j=S.jobs.find(x=>x.id===d.id);if(!window.jspdf){toast('The PDF maker did not load. Reload and try again.',1);return}openEmail(j,'quote')},
+  markQuoteSent:async d=>{const j=clone(S.jobs.find(x=>x.id===d.id));j.quote.sentAt=Date.now();await store.saveJob(j);toast('Quote marked as sent')},
+  acceptQuote:async d=>{const j=clone(S.jobs.find(x=>x.id===d.id));j.quote.acceptedAt=Date.now();const up=['heavy','blocked'].includes(j.status);if(up)j.status='confirmed';
+    await store.saveJob(j);toast(up?'Quote accepted. Booking confirmed.':'Quote accepted');if(up&&j.calEventId&&S.mcp)doSync(j,true)},
+  emailInv:d=>{const j=S.jobs.find(x=>x.id===d.id);if(!window.jspdf){toast('The PDF maker did not load. Reload and try again.',1);return}openEmail(j)},
+  emailDraft:async(d,b)=>{const fm=$('#emailForm');if(!fm.reportValidity())return;const j=S.jobs.find(x=>x.id===d.id);
+    await busy(b,async()=>{try{const r=await S.mcp.callTool('Gmail','create_draft',emailPayload(j,fm));const url=r.payload?.viewUrl;
+      $('#sheetCard .sheet-body').insertAdjacentHTML('afterbegin',`<div class="banner"><span><b>Saved to your Gmail drafts.</b> Review and send it from Gmail.</span>${url?`<a class="btn sm" href="${esc(url)}" target="_blank" rel="noopener">Open draft</a>`:''}</div>`)}
+      catch(e){toast(mcpMsg(e,'Gmail'),1)}})},
+  showPay:()=>{$('#payForm').hidden=false;$('#pay-amount').focus()},
+  hidePay:()=>{$('#payForm').hidden=true},
+  delPay:async d=>{const j=clone(S.jobs.find(x=>x.id===d.id));j.payments=(j.payments||[]).filter(p=>p.id!==d.p);await store.saveJob(j);toast('Payment removed')},
+  askDel:()=>{$('#delConfirm').hidden=false;$('#delConfirm').scrollIntoView({block:'nearest'})},
+  cancelDel:()=>{$('#delConfirm').hidden=true},
+  delJob:async(d,b)=>{const j=S.jobs.find(x=>x.id===d.id);await busy(b,async()=>{
+    if(j.calEventId&&S.mcp){try{await S.mcp.callTool('Google Calendar','delete_event',{eventId:j.calEventId,notificationLevel:'NONE'})}catch(e){toast(mcpMsg(e,'Google Calendar')+' The calendar event may still be there.',1)}}
+    await store.deleteJob(d.id)});closeSheet();toast('Booking deleted')},
+  newClient:()=>openClientForm(),
+  openClient:d=>openClient(d.id),
+  editClient:d=>openClientForm(clone(client(d.id))),
+  delClient:async d=>{await store.deleteClient(d.id);closeSheet();toast('Client deleted')},
+  clearExamples:async(d,b)=>{await busy(b,async()=>{for(const j of S.jobs.filter(x=>x.example))await store.deleteJob(j.id);for(const c of S.clients.filter(x=>x.example))await store.deleteClient(c.id)});toast('Examples removed')},
+  exportJobs:()=>{const rows=[['Start','End','Job','Client','Engineer','Role','Venue','Status','PO','Subtotal','VAT','Total','Invoice','Issued','Due','Paid','Balance']];
+    S.jobs.forEach(j=>{const t=totals(j);rows.push([j.start,jobEnd(j),j.title,client(j.clientId)?.name||'',j.engineer,j.role,j.venue,ST[j.status]?.label,j.po,t.sub,t.gst,t.total,j.invoice?.no||'',j.invoice?.issued||'',j.invoice?.due||'',t.paid,j.invoice?t.balance:''])});
+    saveFile(`my-booking-360-jobs-${today()}.csv`,rows.map(r=>r.map(csvCell).join(',')).join('\n'))},
+  exportPays:()=>{const rows=[['Date','Amount','Method','Note','Invoice','Job','Client']];
+    S.jobs.forEach(j=>(j.payments||[]).forEach(p=>rows.push([p.date,p.amount,p.method,p.note,j.invoice?.no||'',j.title,client(j.clientId)?.name||''])));
+    saveFile(`my-booking-360-payments-${today()}.csv`,rows.map(r=>r.map(csvCell).join(',')).join('\n'))},
+};
+document.addEventListener('click',e=>{const b=e.target.closest('[data-act]');if(!b)return;if(b.tagName==='A')return;const f=ACT[b.dataset.act];if(f){e.preventDefault();f(b.dataset,b,e)}});
+$('#sheet').addEventListener('click',e=>{if(e.target.id==='sheet')closeSheet()});
+document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!$('#sheet').hidden)closeSheet()});
+document.addEventListener('input',e=>{
+  const t=e.target;
+  if(t.id==='jobSearch'){S.search=t.value;const pos=t.selectionStart;render();const n=$('#jobSearch');n.focus();n.setSelectionRange(pos,pos)}
+  else if(t.id==='clientSearch'){S.clientSearch=t.value;const pos=t.selectionStart;render();const n=$('#clientSearch');n.focus();n.setSelectionRange(pos,pos)}
+  else if(t.dataset.item&&S.draft){const row=t.closest('.item'),n=+row.dataset.n,it=S.draft.items[n];it[t.dataset.item]=t.dataset.item==='desc'||t.dataset.item==='unit'?t.value:(t.value===''?'':+t.value);
+    if(t.dataset.item==='qty')it.auto=false;
+    if(t.dataset.item==='unit'){it.auto=t.value==='day';if(it.auto){it.qty=bookDays(S.draft);row.querySelector('[data-item=qty]').value=it.qty}}
+    renderDayHint();row.querySelector('.amt').textContent=money((+it.qty||0)*(+it.rate||0));renderDraftTotals()}
+  else if(S.draft&&t.form?.id==='jobForm'&&['start','end','engineer'].includes(t.name)){S.draft[t.name]=t.value;checkClash();if(t.name!=='engineer')syncDayQty()}
+});
+document.addEventListener('change',async e=>{
+  const t=e.target;
+  if(t.id==='curSel'){const old=S.settings.currency;try{await store.saveSettings({currency:t.value});toast(`Currency set to ${t.value}`)}catch{t.value=old}return}
+  if(t.id==='jf-gst'&&S.draft){S.draft.gst=t.checked;renderDraftTotals()}
+  if(t.id==='jf-clientId'){$('#newClientBox').hidden=t.value!=='__new';if(t.value==='__new')$('#jf-ncName').focus()}
+  if(t.dataset.actChange==='invDate'&&t.value){const j=clone(S.jobs.find(x=>x.id===t.dataset.id)),doc=t.dataset.doc||'invoice';j[doc][t.dataset.k]=t.value;await store.saveJob(j);toast(doc==='quote'?'Quote date saved':'Invoice date saved')}
+});
+document.addEventListener('submit',async e=>{
+  const fm=e.target,kind=fm.dataset.form;if(!kind)return;e.preventDefault();
+  const btns=[...fm.querySelectorAll('button[type=submit]'),...(fm.id?document.querySelectorAll(`button[form="${fm.id}"]`):[])];btns.forEach(b=>b.disabled=true);
+  try{
+  if(kind==='job'){
+    readJobForm();const d=S.draft;
+    if(d.clientId==='__new'){const name=$('#jf-ncName').value.trim();if(!name){toast('Enter the new client name.',1);$('#jf-ncName').focus();return}
+      const c={id:newId(),name,email:$('#jf-ncEmail').value.trim(),contact:'',phone:'',address:'',abn:'',notes:''};await store.saveClient(c);d.clientId=c.id}
+    const isNew=!!d._new;delete d._new;const job=clone(d);await store.saveJob(job);
+    closeSheet();toast(isNew?'Booking saved':'Changes saved');
+    if(job.calSync&&S.mcp)doSync(job,true);
+    else if(!job.calSync&&job.calEventId){}
+    if(S.view!=='cal'&&S.view!=='jobs'&&S.view!=='home'){}
+    setTimeout(()=>openJob(job.id),50);
+  }else if(kind==='client'){
+    const c={id:fm.dataset.id};['name','contact','email','phone','address','abn','notes'].forEach(k=>c[k]=fm.elements[k].value.trim());
+    const prev=client(c.id);await store.saveClient({...(prev||{}),...c,example:prev?.example||false});closeSheet();toast('Client saved');openClient(c.id);
+  }else if(kind==='settings'){
+    const v={};[...fm.elements].forEach(el=>{if(!el.name)return;v[el.name]=el.type==='checkbox'?el.checked:el.type==='number'?(el.value===''?0:+el.value):el.value.trim()});
+    await store.saveSettings(v);toast('Settings saved');
+  }else if(kind==='payment'){
+    const j=clone(S.jobs.find(x=>x.id===fm.dataset.id));j.payments=j.payments||[];
+    j.payments.push({id:newId(),amount:r2(fm.elements.amount.value),date:fm.elements.date.value,method:fm.elements.method.value,note:fm.elements.note.value.trim()});
+    j.payments.sort((a,b)=>a.date.localeCompare(b.date));
+    const t=totals(j);if(j.invoice&&t.balance<=0&&j.status==='confirmed')j.status='completed';
+    await store.saveJob(j);toast(t.balance<=0&&t.total>0?'Payment saved. Paid in full.':`Payment saved. ${money(t.balance)} still owing.`);
+  }else if(kind==='email'){
+    const j=S.jobs.find(x=>x.id===fm.dataset.id),rem=!!fm.dataset.rem,btn=$('#sendBtn');
+    await busy(btn,async()=>{try{await S.mcp.callTool('Gmail','send_message',emailPayload(j,fm));
+      const fresh=clone(S.jobs.find(x=>x.id===j.id));const to=fm.elements.to.value.trim();
+      if(fm.dataset.kind==='quote'){fresh.quote.sentAt=Date.now();fresh.quote.sentTo=to}else if(rem){fresh.invoice.reminders=[...(fresh.invoice.reminders||[]),Date.now()]}else{fresh.invoice.sentAt=Date.now();fresh.invoice.sentTo=to}
+      await store.saveJob(fresh);toast(`${fm.dataset.kind==='quote'?'Quote':rem?'Reminder':'Invoice'} sent to ${to}`);openJob(j.id)}
+      catch(err){toast(mcpMsg(err,'Gmail'),1)}});
+  }}catch(err){console.error(err)}finally{btns.forEach(b=>{if(b.isConnected)b.disabled=false})}
+});
+boot();
+</script>
+
+</body></html>

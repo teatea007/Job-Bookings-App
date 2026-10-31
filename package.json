@@ -3,7 +3,7 @@
   "private": true,
   "description": "Job booking, quoting, invoicing and payment tracking for engineers and techs (South Africa).",
   "scripts": {
-    "test": "node tests/day-rate.test.js \"$PWD/index.html\" && node tests/settings-save.test.js \"$PWD/index.html\" && node tests/quotes-and-pdf.test.js \"$PWD/index.html\" docs/screenshots"
+    "test": "node tests/day-rate.test.js \"$PWD/artifact/index.html\" && node tests/settings-save.test.js \"$PWD/artifact/index.html\" && node tests/quotes-and-pdf.test.js \"$PWD/artifact/index.html\" docs/screenshots && node tests/standalone.test.js"
   },
   "devDependencies": {
     "jspdf": "2.5.1"

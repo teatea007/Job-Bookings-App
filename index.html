@@ -1,6 +1,16 @@
-<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<!doctype html>
+<html lang="en-ZA"><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>My Booking 360</title>
-<meta name="claude:viewport-fit-sides" content="cover">
+<meta name="description" content="Job bookings, quotes, invoices and payments for engineers and techs.">
+<meta name="theme-color" content="#FFFFFF">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
 <meta name="apple-mobile-web-app-title" content="My Booking 360">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -226,6 +236,7 @@ table.t .r{text-align:right;font-family:var(--f-mono);font-variant-numeric:tabul
 @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
 </style>
 
+</head><body>
 <header class="top"><div class="top-in">
   <div class="brand"><div class="mark" aria-hidden="true">360</div><div style="min-width:0"><h1>My Booking 360</h1><small id="topSub">Bookings · Invoices · Money</small></div></div>
   <label class="cur" title="Currency"><span class="sr">Currency</span><select id="curSel" aria-label="Currency"></select></label>
@@ -238,6 +249,7 @@ table.t .r{text-align:right;font-family:var(--f-mono);font-variant-numeric:tabul
 <div class="sheet" id="sheet" hidden><div class="sheet-card" id="sheetCard" role="dialog" aria-modal="true"></div></div>
 <div class="toast" id="toast" hidden role="status"></div>
 
+<script src="config.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script>
@@ -320,7 +332,7 @@ async function copyText(txt){try{await navigator.clipboard.writeText(txt);toast(
 const LKEY='mb360-local';
 function localLoad(){try{const d=JSON.parse(localStorage.getItem(LKEY)||'{}');S.jobs=d.jobs||[];S.clients=d.clients||[];S.settings=withRegion(d.settings||{})}catch{}}
 function withRegion(d){const s={...DEFAULTS,...d};if(!d.region){s.currency='ZAR';s.gstRate=15;s.region='ZA';s.timeZone=s.timeZone||'Africa/Johannesburg'}return s}
-function localSave(){try{localStorage.setItem(LKEY,JSON.stringify({jobs:S.jobs,clients:S.clients,settings:S.settings}))}catch{}}
+function localSave(fromDrive){try{localStorage.setItem(LKEY,JSON.stringify({jobs:S.jobs,clients:S.clients,settings:S.settings}))}catch{}if(!fromDrive&&S.mode==='live')scheduleSync()}
 function upsertLocal(arr,obj){const i=arr.findIndex(x=>x.id===obj.id);if(i>=0)arr[i]=obj;else arr.push(obj)}
 function dbErr(e){
   if(e?.code==='quota_exceeded')toast('Storage is full. Delete some old jobs, then try again.',1);
@@ -337,20 +349,159 @@ const store={
 };
 function sortJobs(){S.jobs.sort((a,b)=>(a.start||'').localeCompare(b.start||'')||(a.callTime||'').localeCompare(b.callTime||''))}
 
+/* ---------- Google: sign-in, Drive storage, Calendar, Gmail ---------- */
+// Standalone build: OAuth token via redirect (works in iPhone home-screen apps), data in a private Drive appData file.
+const CFG=window.MB360_CONFIG||{};
+const SCOPES='https://www.googleapis.com/auth/drive.appdata https://www.googleapis.com/auth/calendar.events https://www.googleapis.com/auth/gmail.compose';
+const G={token:null,exp:0,fileId:null,remoteTime:null,saving:false,again:false,authError:null};
+function lsGet(k){try{return localStorage.getItem(k)}catch{return null}}
+function lsSet(k,v){try{v==null?localStorage.removeItem(k):localStorage.setItem(k,v)}catch{}}
+const clientId=()=>(CFG.googleClientId||'').trim()||(lsGet('mb360-client-id')||'').trim();
+const redirectUri=()=>location.origin+location.pathname.replace(/index\.html$/,'');
+const gValid=()=>!!G.token&&G.exp>Date.now();
+function gSignIn(silent){
+  const st=newId();try{sessionStorage.setItem('mb360-state',st)}catch{}
+  const q=new URLSearchParams({client_id:clientId(),redirect_uri:redirectUri(),response_type:'token',scope:SCOPES,include_granted_scopes:'true',state:st});
+  if(silent)q.set('prompt','none');
+  const hint=lsGet('mb360-email');if(hint)q.set('login_hint',hint);
+  location.assign('https://accounts.google.com/o/oauth2/v2/auth?'+q);
+}
+function gTakeToken(){
+  const h=new URLSearchParams(location.hash.slice(1));
+  if(!h.get('access_token')&&!h.get('error'))return;
+  history.replaceState(null,'',location.pathname+location.search);
+  let st=null;try{st=sessionStorage.getItem('mb360-state');sessionStorage.removeItem('mb360-state')}catch{}
+  if(!st||h.get('state')!==st)return;
+  if(h.get('error')){G.authError=h.get('error');return}
+  G.token=h.get('access_token');G.exp=Date.now()+((+h.get('expires_in')||3600)-60)*1000;
+  lsSet('mb360-token',JSON.stringify({t:G.token,e:G.exp}));lsSet('mb360-signed-in','1');
+}
+function gRestore(){if(G.token)return;try{const o=JSON.parse(lsGet('mb360-token')||'null');if(o&&o.e>Date.now()){G.token=o.t;G.exp=o.e}}catch{}}
+async function gFetch(url,opt={}){
+  if(!gValid())throw {code:'needs_reauth'};
+  let r;
+  try{r=await fetch(url,{...opt,headers:{Authorization:'Bearer '+G.token,...(opt.headers||{})}})}catch{throw {code:'network'}}
+  if(r.status===401){G.token=null;lsSet('mb360-token',null);render();throw {code:'needs_reauth'}}
+  if(!r.ok){let m='';try{m=(await r.json()).error?.message||''}catch{}throw {code:r.status===403?'forbidden':'tool_error',status:r.status,message:m||('HTTP '+r.status)}}
+  return r.status===204?null:r.json();
+}
+
+/* Drive: one JSON file in the hidden appDataFolder */
+const DFILE='my-booking-360.json',DAPI='https://www.googleapis.com/drive/v3',UAPI='https://www.googleapis.com/upload/drive/v3';
+const snapshot=()=>({app:'My Booking 360',v:1,jobs:S.jobs,clients:S.clients,settings:S.settings,savedAt:Date.now()});
+async function driveFind(){const r=await gFetch(`${DAPI}/files?spaces=appDataFolder&q=${encodeURIComponent(`name='${DFILE}'`)}&fields=files(id,modifiedTime)`);return (r.files||[])[0]||null}
+const driveRead=id=>gFetch(`${DAPI}/files/${id}?alt=media`);
+async function driveWrite(data){
+  const b='mb360'+newId(),meta=G.fileId?{}:{name:DFILE,parents:['appDataFolder']};
+  const body=`--${b}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n${JSON.stringify(meta)}\r\n--${b}\r\nContent-Type: application/json\r\n\r\n${JSON.stringify(data)}\r\n--${b}--`;
+  const r=await gFetch(G.fileId?`${UAPI}/files/${G.fileId}?uploadType=multipart&fields=id,modifiedTime`:`${UAPI}/files?uploadType=multipart&fields=id,modifiedTime`,
+    {method:G.fileId?'PATCH':'POST',headers:{'Content-Type':'multipart/related; boundary='+b},body});
+  G.fileId=r.id;G.remoteTime=r.modifiedTime;
+}
+function applyData(d){
+  S.jobs=d.jobs||[];S.clients=(d.clients||[]).slice().sort((a,b)=>(a.name||'').localeCompare(b.name||''));S.settings=withRegion(d.settings||{});sortJobs();
+}
+let saveT;
+function scheduleSync(){lsSet('mb360-dirty','1');S.syncState='pending';renderSync();clearTimeout(saveT);saveT=setTimeout(syncNow,700)}
+async function syncNow(){
+  if(!gValid()){S.syncState='offline';renderSync();return}
+  if(G.saving){G.again=true;return}
+  G.saving=true;S.syncState='pending';renderSync();
+  try{await driveWrite(snapshot());lsSet('mb360-dirty',null);S.syncState='saved'}
+  catch(e){S.syncState=e?.code==='needs_reauth'?'offline':'error'}
+  finally{G.saving=false;renderSync();if(G.again){G.again=false;syncNow()}}
+}
+async function driveLoad(){
+  const f=await driveFind();
+  if(f){G.fileId=f.id;G.remoteTime=f.modifiedTime}
+  if(f&&lsGet('mb360-dirty')!=='1'){applyData(await driveRead(f.id));localSave(true)}
+  else{await driveWrite(snapshot());lsSet('mb360-dirty',null)}
+  S.syncState='saved';
+}
+function renderSync(){
+  const el=$('#topSub');if(!el)return;
+  el.textContent=S.mode!=='live'?'Bookings · Invoices · Money':({saved:'Saved to Google Drive',pending:'Saving…',error:'Not saved to Drive yet',offline:'Saved on this device only'}[S.syncState]||'Bookings · Invoices · Money');
+}
+
+/* Calendar + Gmail, behind the same callTool interface the rest of the app uses */
+const b64utf8=s=>btoa(unescape(encodeURIComponent(s)));
+const wrap76=s=>s.replace(/.{1,76}/g,'$&\r\n');
+function mimeMessage(a){
+  const id=newId(),b1='mix'+id,b2='alt'+id,hdr=s=>/[^\x20-\x7e]/.test(s)?`=?UTF-8?B?${b64utf8(s)}?=`:s;
+  let m=`To: ${a.to.join(', ')}\r\n${a.cc?.length?`Cc: ${a.cc.join(', ')}\r\n`:''}Subject: ${hdr(a.subject||'')}\r\nMIME-Version: 1.0\r\nContent-Type: multipart/mixed; boundary="${b1}"\r\n\r\n`;
+  m+=`--${b1}\r\nContent-Type: multipart/alternative; boundary="${b2}"\r\n\r\n`;
+  m+=`--${b2}\r\nContent-Type: text/plain; charset=UTF-8\r\nContent-Transfer-Encoding: base64\r\n\r\n${wrap76(b64utf8(a.body||''))}`;
+  m+=`--${b2}\r\nContent-Type: text/html; charset=UTF-8\r\nContent-Transfer-Encoding: base64\r\n\r\n${wrap76(b64utf8(a.htmlBody||a.body||''))}--${b2}--\r\n`;
+  (a.attachments||[]).forEach(f=>{m+=`--${b1}\r\nContent-Type: ${f.mimeType}; name="${f.filename}"\r\nContent-Disposition: attachment; filename="${f.filename}"\r\nContent-Transfer-Encoding: base64\r\n\r\n${wrap76(f.content)}`});
+  return m+`--${b1}--\r\n`;
+}
+const b64url=s=>btoa(s).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
+const CAL='https://www.googleapis.com/calendar/v3/calendars/primary/events',GMAIL='https://gmail.googleapis.com/gmail/v1/users/me';
+const jsonReq=(method,body)=>({method,headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+const googleTools={async callTool(server,tool,a){
+  if(server==='Google Calendar'){
+    if(tool==='delete_event'){try{await gFetch(`${CAL}/${encodeURIComponent(a.eventId)}?sendUpdates=none`,{method:'DELETE'})}catch(e){if(![404,410].includes(e?.status))throw e}return {payload:{}}}
+    const when=v=>a.allDay?{date:v.slice(0,10)}:{dateTime:v,timeZone:a.timeZone||'Africa/Johannesburg'};
+    const ev={summary:a.summary,description:a.description,location:a.location||'',colorId:a.colorId,transparency:a.availability==='AVAILABILITY_FREE'?'transparent':'opaque',start:when(a.startTime),end:when(a.endTime)};
+    if(tool==='update_event'){
+      try{return {payload:await gFetch(`${CAL}/${encodeURIComponent(a.eventId)}?sendUpdates=none`,jsonReq('PATCH',ev))}}
+      catch(e){if(![404,410].includes(e?.status))throw e}
+    }
+    return {payload:await gFetch(`${CAL}?sendUpdates=none`,jsonReq('POST',ev))};
+  }
+  if(server==='Gmail'){
+    const raw=b64url(mimeMessage(a));
+    if(tool==='create_draft')return {payload:{...await gFetch(`${GMAIL}/drafts`,jsonReq('POST',{message:{raw}})),viewUrl:'https://mail.google.com/mail/#drafts'}};
+    return {payload:await gFetch(`${GMAIL}/messages/send`,jsonReq('POST',{raw}))};
+  }
+  throw {code:'tool_error',message:'Unknown service'};
+}};
+const fileSaver={async save({filename,data}){
+  const type=/\.json$/.test(filename)?'application/json':/\.csv$/.test(filename)?'text/csv':'application/pdf';
+  const blob=data instanceof Blob?data:new Blob([data],{type});
+  const u=URL.createObjectURL(blob),a=document.createElement('a');a.href=u;a.download=filename;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),60000);
+}};
+
 async function boot(){
   const now=new Date();S.calMonth=iso(new Date(now.getFullYear(),now.getMonth(),1));S.calSel=today();
-  renderTabs();render();
-  const use=n=>(window.claude&&window.claude.use)?window.claude.use(n).catch(()=>null):Promise.resolve(null);
-  const [db,user,mcp,dl]=await Promise.all([use('db'),use('user'),use('mcp'),use('downloads')]);
-  S.mcp=mcp;S.dl=dl;
-  if(!db){S.mode='local';localLoad();sortJobs();render();return}
-  let owner=true;try{if(user&&user.isOwner){const v=await user.isOwner();owner=v!==false}}catch{}
-  if(!owner){S.mode='notowner';render();return}
-  S.db=db;S.mode='live';
-  let got=0;const ready=()=>{if(++got>=3){S.loaded=true}render()};
-  db.doc('settings/main').onSnapshot(s=>{S.settings=withRegion(s.exists?s.data():{});ready()},()=>ready());
-  db.collection('clients').onSnapshot(s=>{S.clients=s.docs.map(d=>({...d.data(),id:d.id})).sort((a,b)=>(a.name||'').localeCompare(b.name||''));ready()},()=>ready());
-  db.collection('jobs').onSnapshot(s=>{S.jobs=s.docs.map(d=>({...d.data(),id:d.id}));sortJobs();ready()},()=>ready());
+  gTakeToken();gRestore();
+  localLoad();sortJobs();
+  S.mcp=googleTools;S.dl=fileSaver;
+  renderTabs();
+  if(!clientId()){S.mode='setup';render();return}
+  if(!gValid()){
+    if(lsGet('mb360-signed-in')==='1'&&!G.authError){render();gSignIn(true);return}
+    S.mode='signin';render();return;
+  }
+  S.mode='live';S.syncState=lsGet('mb360-dirty')==='1'?'pending':'saved';render();
+  try{await driveLoad()}catch(e){S.syncState='error';toast('Could not load from Google Drive. Showing the copy saved on this device.',1)}
+  S.loaded=true;render();
+  gFetch(`${GMAIL}/profile`).then(p=>{if(p?.emailAddress){lsSet('mb360-email',p.emailAddress);if(S.view==='more')render()}}).catch(()=>{});
+}
+document.addEventListener('visibilitychange',async()=>{
+  if(document.visibilityState!=='visible'||S.mode!=='live')return;
+  if(!gValid()){if($('#sheet').hidden&&lsGet('mb360-signed-in')==='1')gSignIn(true);else render();return}
+  if(lsGet('mb360-dirty')==='1'||G.saving){syncNow();return}
+  try{const f=await driveFind();if(f&&f.modifiedTime!==G.remoteTime){G.fileId=f.id;G.remoteTime=f.modifiedTime;applyData(await driveRead(f.id));localSave(true);render()}}catch{}
+});
+function setupScreen(){
+  return `<div class="card"><h2 class="sec">Connect your Google account</h2>
+    <span>My Booking 360 saves your bookings privately in your Google Drive and uses Google Calendar and Gmail. It needs a Google client ID, which you create once in Google Cloud.</span>
+    <a class="btn" href="https://github.com/teatea007/Job-Bookings-App/blob/main/SETUP-GOOGLE.md" target="_blank" rel="noopener">Open the setup guide</a>
+    <div class="kv"><dt>Website address</dt><dd><span class="num" style="font-size:13px">${esc(location.origin)}</span><button class="copy" data-act="copy" data-t="${esc(location.origin)}">Copy</button></dd>
+    <dt>Redirect address</dt><dd><span class="num" style="font-size:13px">${esc(redirectUri())}</span><button class="copy" data-act="copy" data-t="${esc(redirectUri())}">Copy</button></dd></div>
+    <label class="field"><span>Google client ID</span><input id="clientIdInp" placeholder="1234…apps.googleusercontent.com" autocomplete="off" autocapitalize="off" spellcheck="false"></label>
+    <div class="row end"><button class="btn primary" data-act="saveClientId">Continue</button></div></div>`;
+}
+function signinScreen(){
+  const err={access_denied:'You cancelled the Google sign-in.',interaction_required:'',login_required:'',consent_required:''}[G.authError];
+  return `<div class="empty" style="padding:32px 20px;gap:14px"><div class="mark" style="width:64px;height:64px;font-size:22px;border-radius:16px" aria-hidden="true">360</div>
+    <b style="font-size:20px">Welcome to My Booking 360</b>
+    <span>Sign in with Google to open your bookings. They're saved privately in your Google Drive, and the same sign-in syncs Google Calendar and sends quotes and invoices from your Gmail.</span>
+    ${err?`<span class="warnbox">${err}</span>`:G.authError?`<span class="hint">Google asked you to sign in again.</span>`:''}
+    <button class="btn primary" data-act="signIn">Sign in with Google</button>
+    <span class="hint">Google may warn that the app isn't verified. It's your own app, so choose Continue.</span>
+    ${CFG.googleClientId?'':`<button class="btn sm ghost" data-act="resetClientId">Change client ID</button>`}</div>`;
 }
 
 /* ---------- rendering ---------- */
@@ -361,9 +512,11 @@ function render(){
   S.charts.forEach(c=>{try{c.destroy()}catch{}});S.charts=[];
   const v=$('#view'),cs=$('#curSel'),cur=S.settings.currency||'ZAR';
   if(cs.dataset.v!==cur){cs.innerHTML=CURRENCIES.some(c=>c[0]===cur)?CURRENCIES.map(([k])=>`<option value="${k}" ${k===cur?'selected':''}>${k}</option>`).join(''):`<option selected>${esc(cur)}</option>`+CURRENCIES.map(([k])=>`<option>${k}</option>`).join('');cs.dataset.v=cur}
-  cs.disabled=S.mode==='loading'||S.mode==='notowner';
+  cs.disabled=S.mode!=='live';renderSync();
+  const nb=$('.top [data-act=newJob]');if(nb)nb.hidden=S.mode!=='live';
   if(S.mode==='loading'){v.innerHTML=`<div class="empty"><div class="spin"></div><span>Loading your bookings…</span></div>`;return}
-  if(S.mode==='notowner'){v.innerHTML=`<div class="empty"><b>This booking book is private</b><span>Only its owner can see and change the bookings, clients and invoices in My Booking 360.</span></div>`;return}
+  if(S.mode==='setup'){v.innerHTML=setupScreen();return}
+  if(S.mode==='signin'){v.innerHTML=signinScreen();return}
   const views={home:vHome,jobs:vJobs,cal:vCal,clients:vClients,money:vMoney,more:vMore};
   v.innerHTML=banners()+(views[S.view]||vHome)();
   if(S.view==='money')drawCharts();
@@ -371,7 +524,8 @@ function render(){
 }
 function banners(){
   let b='';
-  if(S.mode==='local')b+=`<div class="banner warn"><span><b>Saved on this device only.</b> Open My Booking 360 from claude.ai while signed in to keep bookings in your account, sync your calendar and email invoices.</span></div>`;
+  if(S.mode==='live'&&!gValid())b+=`<div class="banner warn"><span><b>Google sign-in expired.</b> Your changes are kept on this device until you reconnect.</span><button class="btn sm" data-act="reconnect">Reconnect Google</button></div>`;
+  else if(S.syncState==='error')b+=`<div class="banner warn"><span><b>Not saved to Google Drive yet.</b> Your changes are kept on this device.</span><button class="btn sm" data-act="retrySync">Try again</button></div>`;
   if(S.jobs.some(j=>j.example)||S.clients.some(c=>c.example))b+=`<div class="banner"><span><b>You are looking at example bookings.</b> They show how the app works. Remove them when you are ready to add your own.</span><button class="btn sm" data-act="clearExamples">Remove examples</button></div>`;
   if(S.mode==='live'&&S.loaded&&!S.settings.businessName)b+=`<div class="banner"><span><b>Add your business details</b> so your invoices show your name, VAT number and bank details.</span><button class="btn sm" data-act="tab" data-v="more">Set up</button></div>`;
   return b;
@@ -551,11 +705,13 @@ function vMore(){
     <label class="switch"><span>Add new bookings to Google Calendar<br><small class="hint">You can turn this off per booking</small></span><input type="checkbox" name="autoSync" id="set-sync" ${s.autoSync?'checked':''}></label>
     <div class="row end"><button class="btn primary" type="submit">Save settings</button></div>
   </form>
-  <div class="card"><h2 class="sec">Connections</h2>
-    <div class="kv"><dt>Saving</dt><dd>${S.mode==='live'?'Saved to your Claude account, private to you, on every device':'This device only'}</dd>
-    <dt>Calendar</dt><dd>${S.mcp?'Google Calendar. The first sync asks your permission.':'Not available in this view'}</dd>
-    <dt>Email</dt><dd>${S.mcp?'Gmail. Invoices send from your own address.':'Not available in this view'}</dd></div>
-    <span class="hint">On iPhone, add your Google account in Settings → Calendar → Accounts and these bookings show in the Calendar app too.</span>
+  <div class="card"><h2 class="sec">Google account &amp; data</h2>
+    <div class="kv"><dt>Signed in</dt><dd>${esc(lsGet('mb360-email')||'Your Google account')}</dd>
+    <dt>Saving</dt><dd>A private file in your Google Drive, plus a copy on this device</dd>
+    <dt>Calendar</dt><dd>Your main Google Calendar</dd>
+    <dt>Email</dt><dd>Gmail. Quotes and invoices send from your own address.</dd></div>
+    <div class="row"><button class="btn sm" data-act="backup">Back up to a file</button><button class="btn sm" data-act="restore">Restore from a file</button><input type="file" id="restoreInp" accept="application/json,.json" hidden><span class="spacer"></span><button class="btn sm danger" data-act="signOut">Sign out</button></div>
+    <span class="hint">On iPhone, add your Google account in Settings → Calendar → Accounts and your bookings show in the Calendar app too.</span>
   </div>`;
 }
 
@@ -737,14 +893,11 @@ function openClientForm(c){
 /* ---------- connectors ---------- */
 function mcpMsg(e,server){
   switch(e?.code){
-    case 'server_not_connected':case 'selection_required':return `${server} is not connected. Add it in claude.ai Settings → Connectors, then try again.`;
-    case 'needs_reauth':return `Reconnect ${server} in claude.ai Settings → Connectors, then try again.`;
-    case 'not_in_manifest':return `${server} is switched off for this app. Turn it on in the app's Permissions menu.`;
-    case 'approval_required':case 'consent_required':return `${server} needs your approval. Tap the button again and choose Allow.`;
-    case 'blocked_by_policy':return `Your organisation blocks this ${server} action.`;
+    case 'needs_reauth':return `Your Google sign-in has expired. Tap “Reconnect Google”, then try again.`;
+    case 'forbidden':return `${server} refused the request${e.message?': '+e.message:''}. Sign out and in again to grant access.`;
     case 'tool_error':return `${server} said: ${e.message||'the request failed'}`;
-    case 'server_unavailable':case 'upstream_error':return `${server} did not answer. Check ${server} before trying again, it may have gone through.`;
-    default:return `${server} is not available here right now.`;
+    case 'network':return `Could not reach ${server}. Check your connection, then try again.`;
+    default:return `${server} is not available right now.`;
   }
 }
 function pickId(p){if(!p||typeof p!=='object')return null;return p.id||p.eventId||p.event?.id||p.result?.id||null}
@@ -841,6 +994,17 @@ async function saveFile(filename,data){
 /* ---------- actions ---------- */
 const ACT={
   tab:d=>{S.view=d.v;closeSheet();renderTabs();render();window.scrollTo(0,0)},
+  signIn:()=>gSignIn(false),
+  reconnect:()=>gSignIn(true),
+  retrySync:()=>syncNow(),
+  saveClientId:()=>{const v=$('#clientIdInp').value.trim();if(!/\.apps\.googleusercontent\.com$/.test(v)){toast('That is not a Google client ID. It ends in .apps.googleusercontent.com',1);return}lsSet('mb360-client-id',v);S.mode='signin';render()},
+  resetClientId:()=>{lsSet('mb360-client-id',null);S.mode='setup';render()},
+  signOut:async()=>{if(!confirm('Sign out and remove the copy of your bookings saved on this device? Everything stays in your Google Drive.'))return;
+    if(lsGet('mb360-dirty')==='1'&&!confirm('Some changes have not reached Google Drive yet and will be lost. Sign out anyway?'))return;
+    try{if(G.token)await fetch('https://oauth2.googleapis.com/revoke?token='+encodeURIComponent(G.token),{method:'POST'})}catch{}
+    ['mb360-token','mb360-signed-in','mb360-dirty','mb360-email',LKEY].forEach(k=>lsSet(k,null));location.reload()},
+  backup:()=>saveFile(`my-booking-360-backup-${today()}.json`,JSON.stringify(snapshot(),null,1)),
+  restore:()=>$('#restoreInp').click(),
   newJob:d=>{const j=blankJob(d.date);if(d.client)j.clientId=d.client;openJobForm(j)},
   openJob:d=>openJob(d.id),
   editJob:d=>{const j=S.jobs.find(x=>x.id===d.id);if(j)openJobForm(j)},
@@ -913,6 +1077,9 @@ document.addEventListener('input',e=>{
 });
 document.addEventListener('change',async e=>{
   const t=e.target;
+  if(t.id==='restoreInp'&&t.files[0]){try{const d=JSON.parse(await t.files[0].text());if(!Array.isArray(d.jobs)||!Array.isArray(d.clients))throw 0;
+      if(confirm(`Replace everything in the app with this backup? It has ${d.jobs.length} bookings and ${d.clients.length} clients.`)){applyData(d);localSave();render();toast('Backup restored')}}
+    catch{toast('That file is not a My Booking 360 backup.',1)}t.value='';return}
   if(t.id==='curSel'){const old=S.settings.currency;try{await store.saveSettings({currency:t.value});toast(`Currency set to ${t.value}`)}catch{t.value=old}return}
   if(t.id==='jf-gst'&&S.draft){S.draft.gst=t.checked;renderDraftTotals()}
   if(t.id==='jf-clientId'){$('#newClientBox').hidden=t.value!=='__new';if(t.value==='__new')$('#jf-ncName').focus()}
@@ -954,6 +1121,7 @@ document.addEventListener('submit',async e=>{
   }}catch(err){console.error(err)}finally{btns.forEach(b=>{if(b.isConnected)b.disabled=false})}
 });
 boot();
+if('serviceWorker' in navigator&&location.protocol==='https:')navigator.serviceWorker.register('sw.js').catch(()=>{});
 </script>
 
 </body></html>
